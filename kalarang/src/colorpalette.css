@@ -1,0 +1,72 @@
+:root {
+  /* ============================================
+     KALARANG BRAND COLOR PALETTE
+     Source: Kalarang Logo Brand Colors
+     ============================================ */
+
+  /* Primary Brand Colors */
+  --color-primary: #2FA4A9;           /* Primary Teal - main brand color */
+  --color-primary-dark: #1F7F8B;      /* Deep Aqua - darker variant */
+  --color-accent: #5FD1D8;            /* Accent Cyan - focus/glow effects */
+  --color-royal: #1E4FA3;             /* Royal Blue - primary headings */
+
+  /* Background Colors */
+  --color-bg-dark: #0B1F2A;           /* Midnight Navy - dark backgrounds */
+  --color-bg-dark-surface: #142F3A;   /* Charcoal Blue - dark surface/cards */
+  --color-bg-light: #F8FAFC;          /* Soft White - light backgrounds */
+  --color-bg-white: #FFFFFF;          /* Pure White - cards on light bg */
+
+  /* Text Colors */
+  --color-text-primary-dark: #F8FAFC; /* Soft White - text on dark bg */
+  --color-text-primary-light: #1E4FA3; /* Royal Blue - headings on light bg */
+  --color-text-secondary: #8FA6B3;    /* Cool Gray - secondary text */
+  --color-text-muted: #64748B;        /* Muted text for descriptions */
+  --color-text-dark: #1E293B;         /* Dark text for inputs/body */
+
+  /* Border & Divider Colors */
+  --color-border: #D6E0E6;            /* Border Gray - input borders */
+  --color-border-light: #E2E8F0;      /* Lighter borders */
+  --color-divider: rgba(214, 224, 230, 0.5); /* Divider lines */
+
+  /* State Colors */
+  --color-hover: #1F7F8B;             /* Deep Aqua - hover states */
+  --color-focus: #5FD1D8;             /* Accent Cyan - focus rings */
+  --color-focus-glow: rgba(95, 209, 216, 0.15); /* Focus glow effect */
+
+  /* Gradients - Brand */
+  --gradient-primary: linear-gradient(135deg, #1E4FA3 0%, #2FA4A9 100%);
+  --gradient-primary-hover: linear-gradient(135deg, #1a408a 0%, #1F7F8B 100%);
+  --gradient-dark-bg: linear-gradient(160deg, #0B1F2A 0%, #142F3A 45%, #1F7F8B 100%);
+  --gradient-button: linear-gradient(135deg, #1E4FA3 0%, #2FA4A9 100%);
+
+  /* Legacy Support - Maintain backwards compatibility */
+  --prussian-blue: #0B1F2A;
+  --tropical-teal: #2FA4A9;
+  --dark-cyan: #1F7F8B;
+  --dark-slate-grey: #142F3A;
+  --blue-green: #5FD1D8;
+
+  /* Opacity Variants - for overlays and effects */
+  --primary-alpha-10: rgba(47, 164, 169, 0.1);
+  --primary-alpha-20: rgba(47, 164, 169, 0.2);
+  --primary-alpha-50: rgba(47, 164, 169, 0.5);
+  --accent-alpha-10: rgba(95, 209, 216, 0.1);
+  --accent-alpha-20: rgba(95, 209, 216, 0.2);
+  --white-alpha-10: rgba(255, 255, 255, 0.1);
+  --white-alpha-20: rgba(255, 255, 255, 0.2);
+  --white-alpha-90: rgba(255, 255, 255, 0.9);
+  --dark-alpha-05: rgba(11, 31, 42, 0.05);
+  --dark-alpha-10: rgba(11, 31, 42, 0.1);
+
+  /* Shadow System */
+  --shadow-sm: 0 2px 8px rgba(11, 31, 42, 0.08);
+  --shadow-md: 0 4px 16px rgba(11, 31, 42, 0.12);
+  --shadow-lg: 0 8px 24px rgba(11, 31, 42, 0.15);
+  --shadow-xl: 0 20px 60px rgba(11, 31, 42, 0.2);
+  --shadow-focus: 0 0 0 4px var(--color-focus-glow), 0 0 12px rgba(95, 209, 216, 0.2);
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.3s ease;
+  --transition-smooth: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
