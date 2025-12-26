@@ -832,7 +832,7 @@ a:hover {
   /* Reduce mobile header text */
   .login-mobile-headline {
     font-size: 1.4rem;
-    margin-top: -0.5rem;
+    margin-top: 0rem;
   }
   
   .login-mobile-subtext {
@@ -1081,7 +1081,8 @@ a:hover {
   .home-cta-section {
     flex-direction: column !important;
     gap: 0.5rem !important;
-    margin-top: 0.5rem !important;
+    margin-top: 2.5rem !important;
+    margin-bottom: 1rem !important;
   }
   
   .home-cta-heading {

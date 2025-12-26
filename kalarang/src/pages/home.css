@@ -46,7 +46,7 @@
 
 .home-cta-section {
   text-align: center;
-  margin-top: 0rem;
+  margin-top: 1.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -169,8 +169,8 @@
 
   .home-main-content {
     flex: unset;
-    min-height: 62vh;
-    padding: 0rem;
+    min-height: 55vh;
+    padding: 0rem ;
   }
 
   .login-left-content {
