@@ -21,24 +21,9 @@ import BuyerLanding from "./pages/BuyerLanding";
 function App() {
   const { firebaseUser, appUser, loading } = useAuth();
 
-  // Helper function to check if auth providers match
-  const isAuthValid = () => {
-    if (!firebaseUser || !appUser) return false;
-    
-    // Check if the current Firebase auth provider matches the user's registered provider
-    const firebaseProvider = firebaseUser.providerData[0]?.providerId;
-    const userProvider = appUser.provider;
-    
-    // Map Firebase provider IDs to our stored provider names
-    const providerMap: { [key: string]: string } = {
-      'password': 'password',
-      'google.com': 'google',
-    };
-    
-    const normalizedFirebaseProvider = providerMap[firebaseProvider] || firebaseProvider;
-    
-    // Only allow redirect if providers match
-    return normalizedFirebaseProvider === userProvider;
+  // Helper function to check if user is authenticated
+  const isAuthenticated = () => {
+    return firebaseUser !== null && appUser !== null;
   };
 
   const handleLogin = () => {
@@ -88,24 +73,24 @@ function App() {
         {/* Public routes */}
         <Route
           path="/"
-          element={isAuthValid() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} /> : <Home />}
+          element={isAuthenticated() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} /> : <Home />}
         />
 
         <Route path="/about" element={<About />} />
 
         <Route
           path="/login"
-          element={isAuthValid() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} replace /> : <Login onLogin={handleLogin} />}
+          element={isAuthenticated() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} replace /> : <Login onLogin={handleLogin} />}
         />
 
         <Route
           path="/signup"
-          element={isAuthValid() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} /> : <SignUp onSignUp={handleSignUp} />}
+          element={isAuthenticated() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} /> : <SignUp onSignUp={handleSignUp} />}
         />
 
         <Route
           path="/reset-password"
-          element={isAuthValid() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} /> : <ResetPassword />}
+          element={isAuthenticated() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} /> : <ResetPassword />}
         />
 
         {/* Protected routes */}

@@ -25,17 +25,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setFirebaseUser(user);
+      // Add a small delay to allow sign-out operations to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Re-check the current user after the delay
+      const currentUser = auth.currentUser;
+      
+      setFirebaseUser(currentUser);
 
-      if (user) {
+      if (currentUser) {
         try {
-          const profile = await getUserProfile(user.uid);
+          const profile = await getUserProfile(currentUser.uid);
           setAppUser(profile as AppUser);
         } catch (error) {
           // User is authenticated with Firebase but has no Firestore profile
           // This can happen during Google sign-in when account doesn't exist
           console.log("No user profile found in Firestore");
           setAppUser(null);
+          // Sign out the user if they don't have a profile
+          await auth.signOut();
+          setFirebaseUser(null);
         }
       } else {
         setAppUser(null);

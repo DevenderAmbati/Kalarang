@@ -35,13 +35,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     try {
       setGoogleLoading(true);
       setErrorMessage('');
-      await signInWithGoogle();
-      // If successful, onLogin will be called by AuthContext
-      onLogin();
-      setGoogleLoading(false);
+      const result = await signInWithGoogle();
+      // Only if we reach here, login was successful
+      // Navigation will be handled by AuthContext
     } catch (err: any) {
       console.error('Google login error:', err);
+      // Always stop loading on error
       setGoogleLoading(false);
+      
       if (err.message === "NO_ACCOUNT" || err.message.includes("NO_ACCOUNT")) {
         toast.error("No account found. Please sign up first to join Kalarang!", {
           position: "top-right",
@@ -64,7 +65,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           pauseOnHover: true,
           draggable: true,
         });
-        // Stay on login page - no navigation
+        // Explicitly stay on login page - do nothing, just show the error
+        return;
       } else {
         toast.error("Google login failed. Please try again.", {
           position: "top-right",
@@ -118,7 +120,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         setErrorMessage('');
         
         await login(email, password);
-        onLogin();
+        // Navigation will be handled by AuthContext automatically
+        // Keep loading state to show animation until redirect happens
       } catch (error: any) {
         console.error('Login failed:', error);
         setIsLoading(false);
