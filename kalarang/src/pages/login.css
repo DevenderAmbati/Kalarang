@@ -924,9 +924,9 @@ a:hover {
 /* Home Page Mobile Responsive Styles */
 @media (max-width: 768px) {
   /* Ensure Home page background shows on mobile */
-  body {
+  /* body {
     background: var(--gradient-dark-bg);
-  }
+  } */
   
   .home-header {
     position: relative !important;
