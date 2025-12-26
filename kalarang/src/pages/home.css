@@ -177,7 +177,7 @@
 
   /* Move header down on mobile */
   .home-header {
-    margin-top: 0rem !important;
+    margin-top: 2rem !important;
   }
 
   /* Prevent scrolling - fit to screen */
