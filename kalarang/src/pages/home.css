@@ -174,4 +174,16 @@
   .login-left-content {
     max-width: 100%;
   }
+
+  /* Move header down on mobile */
+  .home-header {
+    margin-top: 2rem !important;
+  }
+
+  /* Prevent scrolling - fit to screen */
+  .home-container {
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+  }
 }

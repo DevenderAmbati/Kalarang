@@ -789,6 +789,9 @@ a:hover {
   }
   .login-container {
     grid-template-columns: 1fr !important;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
   }
   .login-mobile-header {
     display: none !important;
