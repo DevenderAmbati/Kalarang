@@ -166,4 +166,14 @@
   .home-icon-bg-5 {
     display: none;
   }
+
+  .home-main-content {
+    flex: unset;
+    min-height: 62vh;
+    padding: 0rem;
+  }
+
+  .login-left-content {
+    max-width: 100%;
+  }
 }
