@@ -6,4 +6,5 @@ export interface AppUser {
   email: string;
   role: UserRole;
   createdAt: Date;
+  provider: "password" | "google";
 }

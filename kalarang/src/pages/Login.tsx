@@ -37,6 +37,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       setErrorMessage('');
       await signInWithGoogle();
       // If successful, onLogin will be called by AuthContext
+      onLogin();
       setGoogleLoading(false);
     } catch (err: any) {
       console.error('Google login error:', err);
@@ -63,6 +64,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           pauseOnHover: true,
           draggable: true,
         });
+        // Stay on login page - no navigation
       } else {
         toast.error("Google login failed. Please try again.", {
           position: "top-right",
