@@ -119,9 +119,9 @@ const About: React.FC = () => {
               Where creativity finds its people.
             </p>
             <p className="about-hero-intro">
-              Kalarang is a creative platform built to help original work get the attention 
-              it deserves. We connect creators and art lovers in one place—making it easier 
-              to share, discover, and support creativity without barriers.
+              Kalarang is a creative platform built to help original work get the attention it deserves—<span className="highlight-text">without being influenced by 
+              trends, or algorithms.</span> We connect creators and art lovers in one place, making it easier to share, 
+              discover, and support creativity without barriers.
             </p>
           </div>
 
@@ -192,10 +192,28 @@ const About: React.FC = () => {
               <span className="gradient-text">Why We Exist</span>
             </h2>
             <p className="about-section-text">
-              Too much great creative work goes unnoticed. We built Kalarang to change that. 
-              Our mission is to <span className="highlight-text">remove the gap</span> between creators and people who appreciate 
-              creativity—so ideas, stories, and art can reach the audiences they deserve, 
-              without complexity or gatekeeping.
+              Too much great creative work goes unnoticed—not because it lacks quality, but because it doesn’t fit trends or algorithms. 
+              We built Kalarang to change that. Our mission is to remove the gap between creators and people who appreciate creativity, 
+              so ideas, stories, and art can reach the audiences they deserve.
+            </p>
+          </section>
+
+          {/* Why We're Different Section */}
+          <section 
+            className={`about-section about-section-feature ${visibleSections.has('different') ? 'animate-in' : ''}`}
+            data-section="different"
+            ref={(el) => { sectionRefs.current.different = el; }}
+          >
+            <div className="about-section-icon-accent">
+              {HiSparkles({ size: 40 })}
+            </div>
+            <h2 className="about-section-heading">
+              <span className="gradient-text">Why We're Different</span>
+            </h2>
+            <p className="about-section-text">
+              Kalarang is not driven by trends, algorithms, or virality. We don't push creators to chase visibility through formats, styles, or popularity. 
+              Instead, we focus on <span className="highlight-text">originality, intent, and meaningful creative work</span>—giving every artist a fair space to be discovered 
+              for what they create, not how well it performs.
             </p>
           </section>
 

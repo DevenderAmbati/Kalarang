@@ -21,6 +21,14 @@ import {
 } from "react-icons/md";
 import "./artistLanding.css";
 
+// Capitalize first letter of each word in a name
+const capitalizeName = (name: string): string => {
+  return name
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 export default function ArtistLanding() {
   const { appUser } = useAuth();
   const navigate = useNavigate();
@@ -180,7 +188,7 @@ export default function ArtistLanding() {
       >
         <div className="hero-content">
           <h1 className="hero-title">
-            Welcome to Kalarang, {appUser?.name || "Artist"}
+            Welcome to Kalarang, {appUser?.name ? capitalizeName(appUser.name) : "Artist"}
           </h1>
           <p className="hero-subtitle">
             Your space to create, refine, and publish original art.
@@ -197,10 +205,9 @@ export default function ArtistLanding() {
         <div className="vision-container">
           <h2 className="vision-title">Our Vision for Artists</h2>
           <p className="vision-text">
-            Kalarang is built with artists at the heart. We believe your creative
-            process should be respected—your work stays private until{" "}
-            <strong>you're</strong> ready to share it. No pressure, no rush. Build
-            your gallery, refine your pieces, and publish only when it feels right.
+            Kalarang is built with {" "}<strong>artists at the heart. </strong> We believe the creative process should be respected—not influenced by 
+            trends, algorithms, or virality, but appreciated for its depth, originality, and intent. 
+            Artists are never pressured to chase styles or formats.
           </p>
           <p className="vision-text">
             We're creating a platform where artists have full control, transparent
@@ -308,9 +315,8 @@ export default function ArtistLanding() {
             will roll out gradually.
           </p>
           <p className="early-access-text">
-            <strong>You'll be notified</strong> as soon as artist uploads are
-            enabled. In the meantime, explore the platform and get familiar with
-            our vision.
+            <strong>Thank you for your patience.</strong> We're creating something special 
+            for both artists and art lovers—a platform that truly respects the creative process.
           </p>
         </div>
       </section>
@@ -322,7 +328,7 @@ export default function ArtistLanding() {
         ref={(el) => { sectionRefs.current.cta = el; }}
       >
        
-        <p className="cta-note">We'll notify you when these features are ready</p>
+        <p className="cta-note">We'll notify you when the platform is ready</p>
         <button className="logout-button" onClick={handleLogout}>
           {MdLogout({ size: 20 })}
           <span>Logout</span>
