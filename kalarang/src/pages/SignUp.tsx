@@ -74,14 +74,20 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
     e.preventDefault();
     if (isFormValid) {
       try {
-        // All validations passed, now show loading before signup
-        await signup(formData.fullName, formData.email, formData.password, userType);
-        
-        // Show loader only after successful signup, before navigating to dashboard
+        // Show loader before signup
         const randomIndex = Math.floor(Math.random() * animations.length);
         setRandomAnimation(animations[randomIndex]);
         setSelectedAnimationIndex(randomIndex);
         setIsLoading(true);
+        
+        // All validations passed, now signup
+        await signup(formData.fullName, formData.email, formData.password, userType);
+        
+        // Wait for auth state to update, then navigate
+        setTimeout(() => {
+          const targetRoute = userType === 'artist' ? '/artist' : '/buyer';
+          navigate(targetRoute);
+        }, 2000);
         
         onSignUp();
       } catch (error: any) {
@@ -125,17 +131,22 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
         return;
       }
       
-      // All validations passed, proceed with Google sign-in
-      await signInWithGoogle(userType); // role = artist | buyer
-      
-      // Show loader only after successful Google sign-in, before navigating to dashboard
+      // Show loader before Google sign-in
       const randomIndex = Math.floor(Math.random() * animations.length);
       setRandomAnimation(animations[randomIndex]);
       setSelectedAnimationIndex(randomIndex);
       setIsLoading(true);
       
-      // Navigate based on user role
-      navigate(userType === "artist" ? "/artist" : "/dashboard");
+      // All validations passed, proceed with Google sign-in
+      await signInWithGoogle(userType); // role = artist | buyer
+      
+      // Wait for auth state to update, then navigate
+      setTimeout(() => {
+        const targetRoute = userType === 'artist' ? '/artist' : '/buyer';
+        navigate(targetRoute);
+      }, 2000);
+      
+      // Navigate based on user role - Navigation will be handled by AuthContext
     } catch (err: any) {
       setIsLoading(false);
       setRandomAnimation(null);
@@ -151,9 +162,8 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
           pauseOnHover: true,
           draggable: true,
         });
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
+        // Redirect immediately to login page
+        navigate('/login');
       } else if (err.code === 'auth/account-exists-with-different-credential' || err.code === 'auth/email-already-in-use') {
         toast.error("This account already exists. Please login instead!", {
           position: "top-right",
@@ -163,9 +173,8 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
           pauseOnHover: true,
           draggable: true,
         });
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
+        // Redirect immediately to login page
+        navigate('/login');
       } else {
         toast.error("Google signup failed. Please try again.", {
           position: "top-right",

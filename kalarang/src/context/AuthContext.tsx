@@ -25,7 +25,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      // Add a small delay to allow sign-out operations to complete
+      // Add a delay to allow sign-out operations to complete
+      // This needs to be longer to ensure auth service sign-outs complete
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Re-check the current user after the delay
@@ -35,12 +36,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (currentUser) {
         try {
-          const profile = await getUserProfile(currentUser.uid);
-          setAppUser(profile as AppUser);
+          // Retry logic to handle Firestore write propagation delay
+          let profile = null;
+          let retries = 3;
+          
+          while (retries > 0 && !profile) {
+            try {
+              profile = await getUserProfile(currentUser.uid);
+              setAppUser(profile as AppUser);
+              break;
+            } catch (error) {
+              retries--;
+              if (retries > 0) {
+                // Wait before retrying (increasing delay)
+                await new Promise(resolve => setTimeout(resolve, 500));
+              } else {
+                throw error; // Throw on final retry
+              }
+            }
+          }
         } catch (error) {
           // User is authenticated with Firebase but has no Firestore profile
           // This can happen during Google sign-in when account doesn't exist
-          console.log("No user profile found in Firestore");
+          console.log("No user profile found in Firestore after retries");
           setAppUser(null);
           // Sign out the user if they don't have a profile
           await auth.signOut();

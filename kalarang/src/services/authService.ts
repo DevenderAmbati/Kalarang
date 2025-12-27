@@ -80,13 +80,8 @@ export async function signInWithGoogle(defaultRole?: "artist" | "buyer") {
         // Email exists with password provider - prevent Google login
         // Sign out immediately and wait for it to complete
         await signOut(auth);
-        // Wait longer to ensure the auth state is fully updated
-        await new Promise(resolve => setTimeout(resolve, 500));
-        // Verify sign out completed
-        if (auth.currentUser !== null) {
-          // Still signed in, wait more
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
+        // Wait for auth state to fully update - increased to ensure complete sign-out
+        await new Promise(resolve => setTimeout(resolve, 1000));
         throw new Error("ACCOUNT_EXISTS_WITH_PASSWORD");
       }
     }
@@ -98,11 +93,11 @@ export async function signInWithGoogle(defaultRole?: "artist" | "buyer") {
     if (!snap.exists() && !defaultRole) {
       // Sign out the user immediately to prevent auto-creation
       await signOut(auth);
-      // Wait longer to ensure the auth state is fully updated
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for auth state to fully update
+      await new Promise(resolve => setTimeout(resolve, 800));
       // Verify sign out completed
       if (auth.currentUser !== null) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 800));
       }
       throw new Error("NO_ACCOUNT");
     }
@@ -111,11 +106,11 @@ export async function signInWithGoogle(defaultRole?: "artist" | "buyer") {
     if (snap.exists() && defaultRole) {
       // Sign out the user to prevent automatic login
       await signOut(auth);
-      // Wait longer to ensure the auth state is fully updated
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for auth state to fully update
+      await new Promise(resolve => setTimeout(resolve, 800));
       // Verify sign out completed
       if (auth.currentUser !== null) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 800));
       }
       throw new Error("ACCOUNT_EXISTS");
     }

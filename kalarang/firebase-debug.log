@@ -1,0 +1,25 @@
+[debug] [2025-12-26T08:05:30.168Z] ----------------------------------------------------------------------
+[debug] [2025-12-26T08:05:30.189Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\ASUS\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy
+[debug] [2025-12-26T08:05:30.190Z] CLI Version:   15.1.0
+[debug] [2025-12-26T08:05:30.190Z] Platform:      win32
+[debug] [2025-12-26T08:05:30.191Z] Node Version:  v22.13.1
+[debug] [2025-12-26T08:05:30.192Z] Time:          Fri Dec 26 2025 13:35:30 GMT+0530 (India Standard Time)
+[debug] [2025-12-26T08:05:30.192Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-12-26T08:05:38.963Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-12-26T08:05:38.965Z] > authorizing via signed-in user (devenderambati888@gmail.com)
+[debug] [2025-12-26T08:05:38.965Z] [iam] checking project kalarang-eff3c for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-12-26T08:05:38.969Z] Checked if tokens are valid: true, expires at: 1766738740719
+[debug] [2025-12-26T08:05:38.969Z] Checked if tokens are valid: true, expires at: 1766738740719
+[debug] [2025-12-26T08:05:38.973Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/kalarang-eff3c:testIamPermissions [none]
+[debug] [2025-12-26T08:05:38.974Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/kalarang-eff3c:testIamPermissions x-goog-quota-user=projects/kalarang-eff3c
+[debug] [2025-12-26T08:05:38.974Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/kalarang-eff3c:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-12-26T08:05:50.286Z] *** [apiv2] error from fetch(https://cloudresourcemanager.googleapis.com/v1/projects/kalarang-eff3c:testIamPermissions, {"headers":{},"method":"POST","body":"{\"permissions\":[\"firebase.projects.get\",\"firebasehosting.sites.update\"]}"}): FetchError: request to https://cloudresourcemanager.googleapis.com/v1/projects/kalarang-eff3c:testIamPermissions failed, reason: getaddrinfo ENOTFOUND cloudresourcemanager.googleapis.com
+[debug] [2025-12-26T08:05:50.288Z] [iam] error while checking permissions, command may fail: Failed to make request to https://cloudresourcemanager.googleapis.com/v1/projects/kalarang-eff3c:testIamPermissions
+[debug] [2025-12-26T08:05:50.290Z] Checked if tokens are valid: true, expires at: 1766738740719
+[debug] [2025-12-26T08:05:50.290Z] Checked if tokens are valid: true, expires at: 1766738740719
+[debug] [2025-12-26T08:05:50.291Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/kalarang-eff3c [none]
+[debug] [2025-12-26T08:06:01.420Z] *** [apiv2] error from fetch(https://firebase.googleapis.com/v1beta1/projects/kalarang-eff3c, {"headers":{},"method":"GET","signal":{"reason":""}}): FetchError: request to https://firebase.googleapis.com/v1beta1/projects/kalarang-eff3c failed, reason: getaddrinfo ENOTFOUND firebase.googleapis.com
+[debug] [2025-12-26T08:06:01.423Z] Failed to make request to https://firebase.googleapis.com/v1beta1/projects/kalarang-eff3c (original: request to https://firebase.googleapis.com/v1beta1/projects/kalarang-eff3c failed, reason: getaddrinfo ENOTFOUND firebase.googleapis.com)
+[error] 
+[error] Error: Assertion failed: resolving hosting target of a site with no site name or target name. This should have caused an error earlier

@@ -46,7 +46,7 @@
 
 .home-cta-section {
   text-align: center;
-  margin-top: 0rem;
+  margin-top: 1.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -165,5 +165,25 @@
   .home-icon-bg-4,
   .home-icon-bg-5 {
     display: none;
+  }
+
+  .home-main-content {
+    padding: 0rem 0rem 0rem;
+  }
+
+  .login-left-content {
+    max-width: 100%;
+  }
+
+  /* Move header down on mobile */
+  .home-header {
+    margin-top: 2rem !important;
+  }
+
+  /* Prevent scrolling - fit to screen */
+  .home-container {
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
   }
 }

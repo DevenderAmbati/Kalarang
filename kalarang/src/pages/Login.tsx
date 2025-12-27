@@ -40,10 +40,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       // Navigation will be handled by AuthContext
     } catch (err: any) {
       console.error('Google login error:', err);
-      // Always stop loading on error
-      setGoogleLoading(false);
       
+      // Handle different error cases
       if (err.message === "NO_ACCOUNT" || err.message.includes("NO_ACCOUNT")) {
+        // Stop loading before navigating
+        setGoogleLoading(false);
         toast.error("No account found. Please sign up first to join Kalarang!", {
           position: "top-right",
           autoClose: 3000,
@@ -57,6 +58,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           navigate("/signup");
         }, 500);
       } else if (err.message === "ACCOUNT_EXISTS_WITH_PASSWORD" || err.code === "auth/account-exists-with-different-credential") {
+        // Stop loading and stay on page
+        setGoogleLoading(false);
         toast.error("This account already exists. Please continue with password.", {
           position: "top-right",
           autoClose: 4000,
@@ -68,6 +71,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         // Explicitly stay on login page - do nothing, just show the error
         return;
       } else {
+        // Stop loading for other errors
+        setGoogleLoading(false);
         toast.error("Google login failed. Please try again.", {
           position: "top-right",
           autoClose: 3000,

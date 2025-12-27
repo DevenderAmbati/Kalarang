@@ -1,10 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HiOutlineSearch } from 'react-icons/hi';
 import { MdArrowForward } from 'react-icons/md';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
+  const [showComingSoon, setShowComingSoon] = useState(false);
+
+  const handleExploreClick = () => {
+    setShowComingSoon(true);
+    setTimeout(() => setShowComingSoon(false), 3000);
+  };
 
   return (
     <header className="home-header" style={{
@@ -89,7 +95,7 @@ const Header: React.FC = () => {
       <div className="home-header-right" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         {/* Explore Art Button */}
         <button
-          onClick={() => navigate('/explore')}
+          onClick={handleExploreClick}
           className="home-explore-btn"
           style={{
             background: 'var(--color-primary)',
@@ -141,6 +147,27 @@ const Header: React.FC = () => {
         {MdArrowForward({ size: 15 })}
       </button>
       </div>
+
+      {/* Coming Soon Modal */}
+      {showComingSoon && (
+        <div className="coming-soon-overlay">
+          <div className="coming-soon-modal">
+            <div className="coming-soon-icon">
+              {HiOutlineSearch({ size: 64 })}
+            </div>
+            <h2 className="coming-soon-title">Coming Soon!</h2>
+            <p className="coming-soon-message">
+              We're curating an amazing collection of artworks for you. 
+              Our explore feature will be available soon!
+            </p>
+            <div className="coming-soon-sparkles">
+              <span className="sparkle">✨</span>
+              <span className="sparkle">🎨</span>
+              <span className="sparkle">✨</span>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };
