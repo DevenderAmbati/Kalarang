@@ -785,26 +785,14 @@ a:hover {
 
 /* Media Queries */
 @media (max-width: 768px) {
-  body {
-    overflow: hidden;
-    position: fixed;
-    width: 100%;
-    height: 100vh;
-  }
-  
   .login-container .login-left-section {
     display: none !important;
   }
   .login-container {
     grid-template-columns: 1fr !important;
-    height: 100vh;
+    min-height: 100vh;
     max-height: 100vh;
     overflow: hidden;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
   }
   .login-mobile-header {
     display: none !important;
@@ -827,10 +815,6 @@ a:hover {
     justify-content: center !important;
     align-items: center !important;
     padding: 1rem !important;
-    overflow-y: auto;
-    overflow-x: hidden;
-    height: 100vh;
-    -webkit-overflow-scrolling: touch;
   }
   
   /* Reduce login card size */
