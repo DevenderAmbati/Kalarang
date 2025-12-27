@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FaInstagram } from 'react-icons/fa';
 
 const Footer: React.FC = () => {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ const Footer: React.FC = () => {
       zIndex: 100
     }}>
       {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
         <img
           src="/test top.png"
           alt="Kalarang"
@@ -29,21 +30,32 @@ const Footer: React.FC = () => {
       </div>
 
       {/* Links */}
-      <div className="home-footer-links" style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-        <a 
-          onClick={() => navigate('/about')}
-          style={{ color: 'var(--color-accent)', fontSize: '0.9rem', textDecoration: 'none', cursor: 'pointer' }}
-        >
-          About
-        </a>
+      <div className="home-footer-links" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <a href="#" style={{ color: 'var(--color-accent)', fontSize: '0.9rem', textDecoration: 'none' }}>
           Privacy Policy
         </a>
-        <a href="#" style={{ color: 'var(--color-accent)', fontSize: '0.9rem', textDecoration: 'none' }}>
+        <a href="#" className="terms-link" style={{ color: 'var(--color-accent)', fontSize: '0.5rem', textDecoration: 'none' }}>
           Terms of Service
         </a>
-        <a href="#" style={{ color: 'var(--color-accent)', fontSize: '0.9rem', textDecoration: 'none' }}>
-          Contact Us
+        <a 
+          href="https://www.instagram.com/kalarang.world" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          style={{ 
+            color: 'var(--color-accent)', 
+            fontSize: '0.9rem', 
+            textDecoration: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            transition: 'all 0.3s ease'
+          }}
+          title="Follow us on Instagram"
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          {FaInstagram({ size: 18 })}
+          <span>kalarang.world</span>
         </a>
         <a href="mailto:support@kalarang.com" style={{ color: 'var(--color-accent)', fontSize: '0.9rem', textDecoration: 'none' }}>
           support@kalarang.com

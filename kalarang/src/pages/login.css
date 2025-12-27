@@ -1081,6 +1081,10 @@ a:hover {
     font-size: 0.7rem !important;
   }
   
+  .home-footer-links .terms-link {
+    font-size: 0.5rem !important;
+  }
+  
   /* Call to action mobile */
   .home-cta-section {
     flex-direction: column !important;
