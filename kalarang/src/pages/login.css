@@ -6,7 +6,8 @@
 
 /* Container */
 .login-container {
-  height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
   display: grid;
   grid-template-columns: 55fr 45fr;
   position: relative;
@@ -789,7 +790,7 @@ a:hover {
   }
   .login-container {
     grid-template-columns: 1fr !important;
-    height: 100vh;
+    min-height: 100vh;
     max-height: 100vh;
     overflow: hidden;
   }
@@ -1078,6 +1079,10 @@ a:hover {
   
   .home-footer-links a {
     font-size: 0.7rem !important;
+  }
+  
+  .home-footer-links .terms-link {
+    font-size: 0.5rem !important;
   }
   
   /* Call to action mobile */

@@ -2,9 +2,11 @@
 
 .home-container {
   min-height: 100vh;
+  max-height: 100vh;
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow: hidden;
 }
 
 
@@ -182,8 +184,13 @@
 
   /* Prevent scrolling - fit to screen */
   .home-container {
-    height: 100vh;
+    min-height: 100vh;
     max-height: 100vh;
     overflow: hidden;
+  }
+
+  .home-main-content {
+    flex: 1;
+    overflow-y: auto;
   }
 }

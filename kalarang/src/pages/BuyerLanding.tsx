@@ -15,6 +15,14 @@ import {
 } from "react-icons/md";
 import "./buyerLanding.css";
 
+// Capitalize first letter of each word in a name
+const capitalizeName = (name: string): string => {
+  return name
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 export default function BuyerLanding() {
   const { appUser } = useAuth();
   const navigate = useNavigate();
@@ -89,10 +97,10 @@ export default function BuyerLanding() {
         "Learn about the artists behind the art. Explore artist profiles, their stories, and creative journeys.",
     },
     {
-      title: "Purchase original art (future phase)",
+      title: "Purchase original art",
       icon: MdShoppingCart,
       description:
-        "Buy original artwork directly from artists. Secure transactions and direct artist support (coming soon).",
+        "Buy original artwork directly from artists. Secure transactions and direct artist support.",
     },
   ];
 
@@ -118,7 +126,7 @@ export default function BuyerLanding() {
     {
       number: "4",
       title: "Purchase",
-      description: "Acquire original art directly from artists (future phase)",
+      description: "Acquire original art directly from artists",
       icon: MdShoppingCart,
     },
   ];
@@ -127,7 +135,7 @@ export default function BuyerLanding() {
     {
       title: "Artist-First Platform",
       icon: MdAutoAwesome,
-      description: "Artists control when their work goes public. No pressure, no rush—just quality art.",
+      description: "Artists remain fully in control of their work, without pressure from algorithms, trends, or timelines.",
     },
     {
       title: "Quality-Focused Curation",
@@ -156,7 +164,7 @@ export default function BuyerLanding() {
       >
         <div className="hero-content">
           <h1 className="hero-title">
-            Welcome to Kalarang, {appUser?.name || "Art Lover"}
+            Welcome to Kalarang, {appUser?.name ? capitalizeName(appUser.name) : "Art Lover"}
           </h1>
           <p className="hero-subtitle">
             Your space to discover, explore, and collect original art.
@@ -173,11 +181,11 @@ export default function BuyerLanding() {
         <div className="vision-container">
           <h2 className="vision-title">Our Vision for Art Collectors</h2>
           <p className="vision-text">
-            Kalarang is built for people who value art beyond the scroll. We believe discovering 
-            and collecting art should feel thoughtful and meaningful—not overwhelming or rushed. 
+            Kalarang is built for people who value art beyond trends and endless scrolling. We believe discovering 
+            and collecting art should feel thoughtful and meaningful—not driven by algorithms, or popularity.
           </p>
           <p className="vision-text">
-            We're creating a space where collectors can explore original art with confidence, 
+            We're creating a space where collectors can explore original art, 
             connect directly with the artists behind the work, and invest in pieces that truly 
             resonate with them.
           </p>
@@ -239,9 +247,8 @@ export default function BuyerLanding() {
             Why Kalarang is Different
           </h2>
           <p className="community-intro">
-            Kalarang is built with artists at the heart. We believe in respecting the creative process 
-            and delivering quality over quantity. When you discover art here, you know it's been 
-            thoughtfully prepared and published by the artist when they felt ready.
+            Kalarang is built with artists at the heart. We prioritize creativity over trends and quality over quantity, 
+            ensuring that art is discovered for its originality and intent—not popularity or performance metrics.
           </p>
           <div className="community-grid">
             {artistFirstFeatures.map((feature, index) => (
