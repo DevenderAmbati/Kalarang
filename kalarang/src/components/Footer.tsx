@@ -57,8 +57,8 @@ const Footer: React.FC = () => {
           {FaInstagram({ size: 18 })}
           <span>kalarang.world</span>
         </a>
-        <a href="mailto:support@kalarang.com" style={{ color: 'var(--color-accent)', fontSize: '0.9rem', textDecoration: 'none' }}>
-          support@kalarang.com
+        <a href="mailto:kalarang.team@gmail.com" style={{ color: 'var(--color-accent)', fontSize: '0.9rem', textDecoration: 'none' }}>
+          kalarang.team@gmail.com
         </a>
       </div>
     </footer>
