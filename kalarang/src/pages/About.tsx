@@ -100,7 +100,7 @@ const About: React.FC = () => {
         {/* Main content */}
         <div className="about-content-wrapper">
           {/* Hero Section */}
-          <div 
+          <div
             className={`about-hero-section ${visibleSections.has('hero') ? 'animate-in' : ''}`}
             data-section="hero"
             ref={(el) => { sectionRefs.current.hero = el; }}
@@ -112,21 +112,21 @@ const About: React.FC = () => {
               {HiSparkles({ size: 32 })}
             </div>
             <h1 className="login-hero-headline-about home-hero-headline">
-            <span className="gradient-text">About </span> Kalarang
-          </h1>
+              <span className="gradient-text">About </span> Kalarang
+            </h1>
             <div className="about-hero-divider"></div>
             <p className="about-hero-subheading">
               Where creativity finds its people.
             </p>
             <p className="about-hero-intro">
-              Kalarang is a creative platform built to help original work get the attention it deserves—<span className="highlight-text">without being influenced by 
-              trends, or algorithms.</span> We connect creators and art lovers in one place, making it easier to share, 
+              Kalarang is a creative platform built to help original work get the attention it deserves—<span className="highlight-text">without being influenced by
+                trends, or algorithms.</span> We connect creators and art lovers in one place, making it easier to share,
               discover, and support creativity without barriers.
             </p>
           </div>
 
           {/* Who We Are Section */}
-          <section 
+          <section
             className={`about-section about-section-feature ${visibleSections.has('who') ? 'animate-in' : ''}`}
             data-section="who"
             ref={(el) => { sectionRefs.current.who = el; }}
@@ -138,14 +138,14 @@ const About: React.FC = () => {
               <span className="gradient-text">Who We Are </span>
             </h2>
             <p className="about-section-text">
-              We are a <span className="highlight-text">community-driven platform</span> created for people who believe creativity 
-              should be seen, valued, and supported. Kalarang brings together artists, creators, 
+              We are a <span className="highlight-text">community-driven platform</span> created for people who believe creativity
+              should be seen, valued, and supported. Kalarang brings together artists, creators,
               and art lovers to form a space where original work can thrive and reach the right audience.
             </p>
           </section>
 
           {/* What We Do Section */}
-          <section 
+          <section
             className={`about-section ${visibleSections.has('what') ? 'animate-in' : ''}`}
             data-section="what"
             ref={(el) => { sectionRefs.current.what = el; }}
@@ -180,7 +180,7 @@ const About: React.FC = () => {
           </section>
 
           {/* Why We Exist Section */}
-          <section 
+          <section
             className={`about-section about-section-feature ${visibleSections.has('why') ? 'animate-in' : ''}`}
             data-section="why"
             ref={(el) => { sectionRefs.current.why = el; }}
@@ -192,14 +192,14 @@ const About: React.FC = () => {
               <span className="gradient-text">Why We Exist</span>
             </h2>
             <p className="about-section-text">
-              Too much great creative work goes unnoticed—not because it lacks quality, but because it doesn’t fit trends or algorithms. 
-              We built Kalarang to change that. Our mission is to remove the gap between creators and people who appreciate creativity, 
+              Too much great creative work goes unnoticed—not because it lacks quality, but because it doesn’t fit trends or algorithms.
+              We built Kalarang to change that. Our mission is to remove the gap between creators and people who appreciate creativity,
               so ideas, stories, and art can reach the audiences they deserve.
             </p>
           </section>
 
           {/* Why We're Different Section */}
-          <section 
+          <section
             className={`about-section about-section-feature ${visibleSections.has('different') ? 'animate-in' : ''}`}
             data-section="different"
             ref={(el) => { sectionRefs.current.different = el; }}
@@ -211,14 +211,15 @@ const About: React.FC = () => {
               <span className="gradient-text">Why We're Different</span>
             </h2>
             <p className="about-section-text">
-              Kalarang is not driven by trends, algorithms, or virality. We don't push creators to chase visibility through formats, styles, or popularity. 
-              Instead, we focus on <span className="highlight-text">originality, intent, and meaningful creative work</span>—giving every artist a fair space to be discovered 
+              Kalarang is not driven by trends, algorithms, or virality.
+              We don’t treat artists as content creators or push them to chase visibility through reel creation, formats, styles, or popularity.
+              Instead, we focus on <span className="highlight-text">originality, intent, and meaningful creative work</span>—giving every artist a fair space to be discovered
               for what they create, not how well it performs.
             </p>
           </section>
 
           {/* Our Vision Section */}
-          <section 
+          <section
             className={`about-section about-section-feature about-vision-special ${visibleSections.has('vision') ? 'animate-in' : ''}`}
             data-section="vision"
             ref={(el) => { sectionRefs.current.vision = el; }}
@@ -234,26 +235,26 @@ const About: React.FC = () => {
                 {FaHeart({ size: 24 })}
               </div>
               <p className="about-section-text">
-                To become a <span className="highlight-text">global home for original creativity</span>—where creators feel empowered 
+                To become a <span className="highlight-text">global home for original creativity</span>—where creators feel empowered
                 to share their work and people can discover art that truly resonates with them.
               </p>
             </div>
           </section>
 
           {/* CTA Section */}
-          <section 
+          <section
             className={`about-cta-section ${visibleSections.has('cta') ? 'animate-in' : ''}`}
             data-section="cta"
             ref={(el) => { sectionRefs.current.cta = el; }}
           >
             <h2 className="about-cta-heading">Be Part of the Creative Community</h2>
             <p className="about-cta-description">
-              Whether you create or collect, Kalarang is a place for you. Join a growing 
+              Whether you create or collect, Kalarang is a place for you. Join a growing
               community that celebrates originality, expression, and meaningful connection.
             </p>
             <div className="about-cta-buttons">
-             
-              <button 
+
+              <button
                 onClick={() => navigate('/signup')}
                 className="login-button primary-cta about-cta-button"
               >
