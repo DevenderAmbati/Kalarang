@@ -205,9 +205,8 @@ export default function ArtistLanding() {
         <div className="vision-container">
           <h2 className="vision-title">Our Vision for Artists</h2>
           <p className="vision-text">
-            Kalarang is built with {" "}<strong>artists at the heart. </strong> We believe the creative process should be respected—not influenced by 
-            trends, algorithms, or virality, but appreciated for its depth, originality, and intent. 
-            Artists are never pressured to chase styles or formats.
+            Kalarang is built with {" "}<strong>artists at the heart. </strong> We believe the creative process deserves respect—free from trends, algorithms, virality, or the pressure to constantly create reels or chase formats. 
+            Artists are not content creators, and their work is not meant to compete for attention.
           </p>
           <p className="vision-text">
             We're creating a platform where artists have full control, transparent

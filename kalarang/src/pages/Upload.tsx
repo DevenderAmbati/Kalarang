@@ -1,10 +1,19 @@
 import React, { useState } from 'react';
+import Layout from '../components/Layout';
+import { useNavigate } from 'react-router-dom';
+import { logout } from '../services/authService';
 
 const Upload: React.FC = () => {
+  const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -13,13 +22,11 @@ const Upload: React.FC = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>⬆️ Upload Artwork</h1>
+    <Layout onLogout={handleLogout} pageTitle="Upload Artwork">
+      <div style={styles.container}>
         <p style={styles.subtitle}>Share your masterpiece with the world</p>
-      </div>
 
-      <form onSubmit={handleSubmit} style={styles.form}>
+        <form onSubmit={handleSubmit} style={styles.form}>
         <div style={styles.uploadArea}>
           <div style={styles.uploadBox}>
             <span style={styles.uploadIcon}>📸</span>
@@ -86,28 +93,20 @@ const Upload: React.FC = () => {
           Publish Artwork
         </button>
       </form>
-    </div>
+      </div>
+    </Layout>
   );
 };
 
 const styles = {
   container: {
-    padding: '2rem',
     maxWidth: '800px',
     margin: '0 auto',
   },
-  header: {
-    marginBottom: '2rem',
-  },
-  title: {
-    fontSize: '2.5rem',
-    color: 'var(--color-royal)',
-    marginBottom: '0.5rem',
-  },
   subtitle: {
     fontSize: '1.1rem',
-    color: 'var(--color-primary-dark)',
-    margin: 0,
+    color: 'var(--color-text-secondary)',
+    marginBottom: '2rem',
   },
   form: {
     backgroundColor: 'var(--color-bg-white)',
