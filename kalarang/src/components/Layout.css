@@ -1,0 +1,71 @@
+/**
+ * Layout.css
+ * Responsive styles for the Layout component
+ * Handles mobile and desktop view transitions
+ */
+
+/* ============================================
+   HEADER STYLES
+   ============================================ */
+
+.layout-header {
+  background: linear-gradient(135deg, #E8F4F5 0%, #D0EAEC 100%);
+}
+
+.layout-header .header-right > div:hover {
+  color: var(--color-hover) !important;
+}
+
+/* ============================================
+   MOBILE RESPONSIVE STYLES
+   ============================================ */
+
+/* Hide desktop sidebar on mobile, adjust main content */
+@media (max-width: 550px) {
+  /* Hide the desktop sidebar completely on mobile */
+  .sidebar-container {
+    display: none !important;
+  }
+  
+  /* Adjust main content area for mobile */
+  .layout-main-content {
+    margin-left: 0 !important;
+    padding-bottom: 65px; /* Space for bottom nav */
+    max-height: calc(100vh - 55px); /* Prevent scrollbar from extending behind nav */
+    overflow-y: auto; /* Enable scrolling within the content area */
+  }
+
+  /* Adjust header for mobile */
+  .layout-header {
+    padding: 0.75rem 1rem !important;
+  }
+
+  .layout-header h1 {
+    font-size: 1.25rem !important;
+  }
+
+  /* Hide profile icon on mobile */
+  .layout-profile-icon {
+    display: none !important;
+  }
+}
+
+/* Desktop view - ensure bottom nav is hidden */
+@media (min-width: 550px) {
+  .layout-main-content {
+    padding-bottom: 0;
+  }
+}
+
+/* ============================================
+   SAFE AREA SUPPORT (for iPhone notch, etc.)
+   ============================================ */
+
+@supports (padding: max(0px)) {
+  @media (max-width: 480px) {
+    .layout-main-content {
+      /* Add extra padding for devices with safe areas (iPhone X+) */
+      padding-bottom: max(env(safe-area-inset-bottom, 0px), 65px);      /* Adjust max-height for devices with safe areas */
+      max-height: calc(100vh - max(env(safe-area-inset-bottom, 0px), 55px));    }
+  }
+}

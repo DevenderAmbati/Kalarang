@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { HiOutlineSearch } from 'react-icons/hi';
 import { MdArrowForward } from 'react-icons/md';
+import { FaUserCircle } from 'react-icons/fa';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
@@ -44,50 +45,50 @@ const Header: React.FC = () => {
 
         {/* Navigation */}
         <div className="home-nav-links" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', position: 'relative', top: '5px', marginLeft: '-1.5rem' }}>
-        <button
-          onClick={() => navigate('/')}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--color-primary)',
-            fontSize: '1rem',
-            fontWeight: '500',
-            cursor: 'pointer',
-            padding: '0.4rem 1rem',
-            borderRadius: '50px',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--primary-alpha-10)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-          }}
-        >
-          Home
-        </button>
-        <button
-          onClick={() => navigate('/about')}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--color-primary)',
-            fontSize: '1rem',
-            fontWeight: '500',
-            cursor: 'pointer',
-            padding: '0.4rem 1rem',
-            borderRadius: '50px',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'var(--primary-alpha-10)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-          }}
-        >
-          About
-        </button>
+          <button
+            onClick={() => navigate('/')}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--color-primary)',
+              fontSize: '1rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              padding: '0.4rem 1rem',
+              borderRadius: '50px',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--primary-alpha-10)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            Home
+          </button>
+          <button
+            onClick={() => navigate('/about')}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--color-primary)',
+              fontSize: '1rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              padding: '0.4rem 1rem',
+              borderRadius: '50px',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--primary-alpha-10)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
+            About
+          </button>
         </div>
       </div>
 
@@ -124,28 +125,31 @@ const Header: React.FC = () => {
             e.currentTarget.style.boxShadow = '0 4px 12px rgba(47, 164, 169, 0.3)';
           }}
         >
-        {HiOutlineSearch({ size: 16 })}
-        <span className="home-explore-text">Explore Art</span>
-      </button>
+          {HiOutlineSearch({ size: 16 })}
+          <span className="home-explore-text">Explore Art</span>
+        </button>
+
+       
         
+
         {/* Sign In Button */}
-      <button
-        onClick={() => navigate('/login')}
-        className="login-button primary-cta home-signin-btn"
-        style={{
-          padding: '0.65rem 0.85rem',
-          fontSize: '0.75rem',
-          cursor: 'pointer',
-          border: 'none',
-          borderRadius: '50px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.25rem'
-        }}
-      >
-        <span>Sign In</span>
-        {MdArrowForward({ size: 15 })}
-      </button>
+        <button
+          onClick={() => navigate('/login')}
+          className="login-button primary-cta home-signin-btn"
+          style={{
+            padding: '0.65rem 0.85rem',
+            fontSize: '0.75rem',
+            cursor: 'pointer',
+            border: 'none',
+            borderRadius: '50px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.25rem'
+          }}
+        >
+          <span>Sign In</span>
+          {MdArrowForward({ size: 15 })}
+        </button>
       </div>
 
       {/* Coming Soon Modal */}
@@ -157,7 +161,7 @@ const Header: React.FC = () => {
             </div>
             <h2 className="coming-soon-title">Coming Soon!</h2>
             <p className="coming-soon-message">
-              We're curating an amazing collection of artworks for you. 
+              We're curating an amazing collection of artworks for you.
               Our explore feature will be available soon!
             </p>
             <div className="coming-soon-sparkles">

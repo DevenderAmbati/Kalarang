@@ -10,9 +10,15 @@ import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import ResetPassword from "./pages/ResetPassword";
 import Upload from "./pages/Upload";
+import HomeFeed from "./pages/HomeFeed";
+import Discover from "./pages/Discover";
+import Favourites from "./pages/Favourites";
+import Portfolio from "./pages/Portfolio";
+import Profile from "./pages/Profile";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
+import { SidebarProvider } from "./context/SidebarContext";
 import { logout } from "./services/authService";
 import laptopDrawing from './animations/Laptop-Drawing 1.json';
 import ArtistLanding from "./pages/ArtistLanding";
@@ -67,25 +73,26 @@ function App() {
 
   return (
     <Router>
-      <ToastContainer />
-      <Routes>
+      <SidebarProvider>
+        <ToastContainer />
+        <Routes>
 
-        {/* Public routes */}
-        <Route
+          {/* Public routes */}
+          <Route
           path="/"
-          element={isAuthenticated() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} /> : <Home />}
+          element={isAuthenticated() ? <Navigate to="/home" /> : <Home />}
         />
 
         <Route path="/about" element={<About />} />
 
         <Route
           path="/login"
-          element={isAuthenticated() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} replace /> : <Login onLogin={handleLogin} />}
+          element={isAuthenticated() ? <Navigate to="/home" replace /> : <Login onLogin={handleLogin} />}
         />
 
         <Route
           path="/signup"
-          element={isAuthenticated() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} /> : <SignUp onSignUp={handleSignUp} />}
+          element={isAuthenticated() ? <Navigate to="/home" /> : <SignUp onSignUp={handleSignUp} />}
         />
 
         <Route
@@ -98,7 +105,7 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <Layout onLogout={handleLogout}>
+              <Layout onLogout={handleLogout} pageTitle="Dashboard">
                 <div style={{ padding: "2rem" }}>
                   <h1>Dashboard</h1>
                   <p>Welcome {appUser?.name}</p>
@@ -112,9 +119,7 @@ function App() {
           path="/upload"
           element={
             <ProtectedRoute>
-              <Layout onLogout={handleLogout}>
-                <Upload />
-              </Layout>
+              <Upload />
             </ProtectedRoute>
           }
         />
@@ -149,7 +154,7 @@ function App() {
           path="/my-artworks"
           element={
             <ProtectedRoute>
-              <Layout onLogout={handleLogout}>
+              <Layout onLogout={handleLogout} pageTitle="My Artworks">
                 <h1>🖼️ My Artworks</h1>
               </Layout>
             </ProtectedRoute>
@@ -160,14 +165,72 @@ function App() {
           path="/profile"
           element={
             <ProtectedRoute>
-              <Layout onLogout={handleLogout}>
-                <h1>👤 Artist Profile</h1>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute>
+              <HomeFeed />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/discover"
+          element={
+            <ProtectedRoute>
+              <Discover />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/post"
+          element={
+            <ProtectedRoute>
+              <Upload />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/favourites"
+          element={
+            <ProtectedRoute>
+              <Favourites />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/portfolio"
+          element={
+            <ProtectedRoute>
+              <Portfolio />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/cart"
+          element={
+            <ProtectedRoute>
+              <Layout onLogout={handleLogout} pageTitle="Shopping Cart">
+                <div style={{ padding: "2rem" }}>
+                  <h1>🛒 Shopping Cart</h1>
+                  <p>Your selected artworks</p>
+                </div>
               </Layout>
             </ProtectedRoute>
           }
         />
 
       </Routes>
+      </SidebarProvider>
     </Router>
   );
 }
