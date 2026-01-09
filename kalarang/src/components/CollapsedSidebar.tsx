@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { AiFillHome } from 'react-icons/ai';
 import { MdExplore, MdFavorite, MdChevronRight } from 'react-icons/md';
 import { BiUpload } from 'react-icons/bi';
-import { BsBriefcaseFill } from 'react-icons/bs';
+import { BsBriefcaseFill, BsPersonCircle } from 'react-icons/bs';
 import { IconType } from 'react-icons';
 import { useAuth } from '../context/AuthContext';
 import './CollapsedSidebar.css';
@@ -51,16 +51,17 @@ const CollapsedSidebar: React.FC<CollapsedSidebarProps> = ({ onExpand }) => {
     { path: '/post', label: 'Post', Icon: BiUpload },
     { path: '/favourites', label: 'Favourites', Icon: MdFavorite },
     { path: '/portfolio', label: 'Portfolio', Icon: BsBriefcaseFill },
+    { path: '/profile', label: 'Profile', Icon: BsPersonCircle },
   ];
 
   // Filter navigation items based on user role
   const navItems = React.useMemo(() => {
     if (appUser?.role === 'buyer') {
-      // Remove 'post' and 'portfolio' for buyers
+      // Remove 'post' and 'portfolio' for buyers, keep profile
       return allNavItems.filter(item => item.path !== '/post' && item.path !== '/portfolio');
     }
-    // Show all items for artists or when role is not yet loaded
-    return allNavItems;
+    // Show all items except profile for artists
+    return allNavItems.filter(item => item.path !== '/profile');
   }, [appUser?.role]);
 
   // Find the index of the active item for the wave effect

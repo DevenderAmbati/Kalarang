@@ -30,8 +30,7 @@
   /* Adjust main content area for mobile */
   .layout-main-content {
     margin-left: 0 !important;
-    padding-bottom: 65px; /* Space for bottom nav */
-    max-height: calc(100vh - 55px); /* Prevent scrollbar from extending behind nav */
+    max-height: calc(100vh - 65px); /* Prevent scrollbar from extending behind nav */
     overflow-y: auto; /* Enable scrolling within the content area */
   }
 
@@ -45,9 +44,9 @@
   }
 
   /* Hide profile icon on mobile */
-  .layout-profile-icon {
+  /* .layout-profile-icon {
     display: none !important;
-  }
+  } */
 }
 
 /* Desktop view - ensure bottom nav is hidden */
@@ -64,8 +63,7 @@
 @supports (padding: max(0px)) {
   @media (max-width: 480px) {
     .layout-main-content {
-      /* Add extra padding for devices with safe areas (iPhone X+) */
-      padding-bottom: max(env(safe-area-inset-bottom, 0px), 65px);      /* Adjust max-height for devices with safe areas */
-      max-height: calc(100vh - max(env(safe-area-inset-bottom, 0px), 55px));    }
+      /* Adjust max-height for devices with safe areas */
+      max-height: calc(100vh - max(env(safe-area-inset-bottom, 0px), 65px));    }
   }
 }

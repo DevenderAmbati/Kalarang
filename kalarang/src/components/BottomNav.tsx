@@ -54,11 +54,11 @@ const BottomNav: React.FC = () => {
   // Filter navigation items based on user role
   const navItems = React.useMemo(() => {
     if (appUser?.role === 'buyer') {
-      // Remove 'post' and 'portfolio' for buyers
+      // Remove 'post' and 'portfolio' for buyers, keep profile
       return allNavItems.filter(item => item.path !== '/post' && item.path !== '/portfolio');
     }
-    // Show all items for artists or when role is not yet loaded
-    return allNavItems;
+    // Show all items except profile for artists
+    return allNavItems.filter(item => item.path !== '/profile');
   }, [appUser?.role]);
 
   // Find the index of the active item for the wave effect
@@ -81,7 +81,7 @@ const BottomNav: React.FC = () => {
     
     if (activeIndex === -1) {
       // No active item - straight line
-      return `M 0,0 L ${containerWidth},0 L ${containerWidth},55 L 0,55 Z`;
+      return `M 0,0 L ${containerWidth},0 L ${containerWidth},65 L 0,65 Z`;
     }
 
     // Get actual position of active icon
@@ -116,8 +116,8 @@ const BottomNav: React.FC = () => {
       C ${centerX + curveWidth * 0.15},${curveDepth * 1.05} ${centerX + curveWidth * 0.3},${curveDepth * 0.95} ${centerX + curveWidth * 0.45},${curveDepth * 0.65}
       C ${centerX + curveWidth * 0.6},${curveDepth * 0.3} ${centerX + curveWidth * 0.8},0 ${rightEnd},0
       L ${containerWidth},0 
-      L ${containerWidth},55 
-      L 0,55 
+      L ${containerWidth},65 
+      L 0,65 
       Z
     `;
   };
@@ -127,7 +127,7 @@ const BottomNav: React.FC = () => {
       {/* Background with dynamic wave based on active item */}
       <svg
         className="bottom-nav-curve"
-        viewBox={`0 0 ${containerRef.current?.clientWidth || 375} 55`}
+        viewBox={`0 0 ${containerRef.current?.clientWidth || 375} 65`}
         preserveAspectRatio="none"
       >
         <path

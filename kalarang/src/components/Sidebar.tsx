@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AiFillHome } from 'react-icons/ai';
 import { MdExplore, MdFavorite, MdChevronLeft, MdChevronRight } from 'react-icons/md';
 import { BiUpload } from 'react-icons/bi';
-import { BsBriefcaseFill } from 'react-icons/bs';
+import { BsBriefcaseFill, BsPersonCircle } from 'react-icons/bs';
 import { IconType } from 'react-icons';
 import { useSidebar } from '../context/SidebarContext';
 import { useAuth } from '../context/AuthContext';
@@ -51,16 +51,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
     { path: '/post', label: 'Post', Icon: BiUpload },
     { path: '/favourites', label: 'Favourites', Icon: MdFavorite },
     { path: '/portfolio', label: 'Portfolio', Icon: BsBriefcaseFill },
+    { path: '/profile', label: 'Profile', Icon: BsPersonCircle },
   ];
 
   // Filter menu items based on user role
   const menuItems = React.useMemo(() => {
     if (appUser?.role === 'buyer') {
-      // Remove 'post' and 'portfolio' for buyers
+      // Remove 'post' and 'portfolio' for buyers, keep profile
       return allMenuItems.filter(item => item.path !== '/post' && item.path !== '/portfolio');
     }
-    // Show all items for artists or when role is not yet loaded
-    return allMenuItems;
+    // Show all items except profile for artists
+    return allMenuItems.filter(item => item.path !== '/profile');
   }, [appUser?.role]);
 
   return (

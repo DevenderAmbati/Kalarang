@@ -48,13 +48,11 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, pageTitle = 'Dashbo
             <h1 style={styles.pageTitle}>{pageTitle}</h1>
           </div>
           <div className="header-right" style={styles.headerRight}>
-            <div onClick={handleProfileClick} style={styles.profileIcon} className="layout-profile-icon">
-              {appUser?.role === 'artist' ? (
+            {appUser?.role === 'artist' && (
+              <div onClick={handleProfileClick} style={styles.profileIcon} className="layout-profile-icon">
                 <img src="/artist.png" alt="Artist Profile" style={styles.profileImage} />
-              ) : (
-                <img src="/man-with-hat.png" alt="Buyer Profile" style={styles.profileImage} />
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
         <div style={styles.contentWrapper}>
@@ -94,6 +92,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     marginRight: '0rem',
+    minHeight: '40px', // Maintain height even when empty
+    minWidth: '40px', // Maintain width even when empty
   } as React.CSSProperties,
   profileIcon: {
     color: 'var(--color-primary)',
@@ -134,11 +134,10 @@ const styles = {
     flex: 1,
     overflowY: 'auto',
     overflowX: 'hidden',
-    // Add bottom padding on mobile to prevent content being hidden by bottom nav
-    paddingBottom: 'max(env(safe-area-inset-bottom), 65px)',
   } as React.CSSProperties,
   content: {
     padding: '2rem',
+    paddingBottom: '65px', // Match bottom nav height exactly
   } as React.CSSProperties,
 };
 
