@@ -77,8 +77,8 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '1rem 1.5em',
-    background: 'linear-gradient(135deg, #E8F4F5 0%, #D0EAEC 100%)',
-    borderBottom: '1px solid rgba(47, 164, 169, 0.15)',
+    background: 'linear-gradient(90deg, #E8F4F5 0%, #c1f8fdff 100%)',
+    borderBottom: '1px solid rgba(47, 164, 169, 0.2)',
     boxShadow: '0 4px 16px rgba(47, 164, 169, 0.15)',
     position: 'sticky',
     top: 0,
@@ -105,7 +105,7 @@ const styles = {
   } as React.CSSProperties,
   pageTitle: {
     margin: 0,
-    fontSize: '1.75rem',
+    fontSize: '1.35rem',
     fontWeight: 700,
     color: 'var(--color-text-primary-light)',
     fontFamily: '"Poppins", "Segoe UI", "Roboto", sans-serif',
@@ -136,7 +136,7 @@ const styles = {
     overflowX: 'hidden',
   } as React.CSSProperties,
   content: {
-    padding: '2rem',
+    padding: '0.5rem',
     paddingBottom: '65px', // Match bottom nav height exactly
   } as React.CSSProperties,
 };

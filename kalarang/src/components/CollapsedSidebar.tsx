@@ -157,6 +157,7 @@ const CollapsedSidebar: React.FC<CollapsedSidebarProps> = ({ onExpand }) => {
         <path
           d={generatePath()}
           fill="url(#collapsedSidebarGradient)"
+          style={{ transition: 'd 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
         />
         <defs>
           <linearGradient id="collapsedSidebarGradient" x1="0%" y1="0%" x2="0%" y2="100%">

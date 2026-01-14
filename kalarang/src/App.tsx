@@ -15,6 +15,7 @@ import Discover from "./pages/Discover";
 import Favourites from "./pages/Favourites";
 import Portfolio from "./pages/Portfolio";
 import Profile from "./pages/Profile";
+import CardDetail from "./pages/CardDetail";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
@@ -225,6 +226,15 @@ function App() {
                   <p>Your selected artworks</p>
                 </div>
               </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/card/:id"
+          element={
+            <ProtectedRoute>
+              <CardDetail />
             </ProtectedRoute>
           }
         />
