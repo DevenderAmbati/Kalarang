@@ -23,7 +23,7 @@
 }
 
 /* Hide collapsed sidebar on mobile devices */
-@media (max-width: 550px) {
+@media (max-width: 639px) {
   .collapsed-sidebar-container {
     display: none;
   }
@@ -46,6 +46,11 @@
   
   /* Smooth transition for wave animation */
   transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Smooth path transition for the wave effect */
+.collapsed-sidebar-curve path {
+  transition: d 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Additional shadow overlay for depth */

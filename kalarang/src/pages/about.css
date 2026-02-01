@@ -466,8 +466,79 @@
   }
 }
 
+/* Tablet Responsiveness */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .about-main-content {
+    padding: 5rem 1.5rem 3rem;
+  }
+
+  .about-hero-heading {
+    font-size: 2.25rem;
+  }
+
+  .about-hero-subheading {
+    font-size: 1.1rem;
+  }
+
+  .about-hero-intro {
+    font-size: 1rem;
+  }
+
+  .about-section-heading {
+    font-size: 1.5rem;
+  }
+
+  .about-section-text {
+    font-size: 1rem;
+  }
+
+  .about-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .about-cta-heading {
+    font-size: 1.5rem;
+  }
+
+  .about-cta-description {
+    font-size: 1rem;
+  }
+
+  .about-cta-buttons {
+    flex-direction: row !important;
+    gap: 0.75rem;
+  }
+
+  .about-cta-button {
+    padding: 0.65rem 1.25rem;
+    font-size: 0.8rem;
+  }
+
+  /* Adjust decorative icons for tablet */
+  .about-icon-bg-1 {
+    font-size: 3rem;
+    right: 5%;
+  }
+
+  .about-icon-bg-2 {
+    font-size: 4rem;
+    left: 5%;
+  }
+
+  .about-icon-bg-3 {
+    font-size: 3rem;
+    left: 5%;
+  }
+
+  .about-icon-bg-4 {
+    font-size: 3.5rem;
+    right: 5%;
+  }
+}
+
 /* Mobile Responsiveness */
-@media (max-width: 768px) {
+@media (max-width: 639px) {
   .about-main-content {
     padding: 5rem 1.5rem 3rem;
   }
@@ -537,6 +608,7 @@
   }
 }
 
+/* Spacing and font adjustments for extra small screens */
 @media (max-width: 480px) {
   .about-hero-heading {
     font-size: 1.85rem;

@@ -239,7 +239,8 @@ const styles: { [key: string]: CSSProperties } = {
     width: 'auto',
     objectFit: 'contain',
     maxWidth: '50%',
-    marginRight: '-40px',
+    marginLeft: '-15px',
+    marginRight: '-35px',
     filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))',
   },
   logoCollapsed: {
@@ -254,7 +255,7 @@ const styles: { [key: string]: CSSProperties } = {
     width: 'auto',
     objectFit: 'contain',
     maxWidth: '85%',
-    marginLeft: '-25px',
+    marginLeft: '-40px',
     filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))',
     transform: 'translateY(10px)',
   },

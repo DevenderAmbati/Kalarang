@@ -159,8 +159,23 @@
   }
 }
 
+/* Tablet Responsive - Hide decorative icons */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .home-icon-bg-1,
+  .home-icon-bg-2,
+  .home-icon-bg-3,
+  .home-icon-bg-4,
+  .home-icon-bg-5 {
+    display: none;
+  }
+
+  .home-main-content {
+    padding: 0rem 0rem 0rem;
+  }
+}
+
 /* Mobile Responsive - Hide decorative icons */
-@media (max-width: 768px) {
+@media (max-width: 639px) {
   .home-icon-bg-1,
   .home-icon-bg-2,
   .home-icon-bg-3,
