@@ -6,7 +6,7 @@
 }
 
 /* Tablet - 3 columns */
-@media (max-width: 1024px) {
+@media (min-width: 640px) and (max-width: 1023px) {
   .artwork-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
@@ -14,7 +14,7 @@
 }
 
 /* Mobile - 2 columns */
-@media (max-width: 768px) {
+@media (max-width: 639px) {
   .artwork-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;

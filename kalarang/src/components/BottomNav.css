@@ -22,8 +22,8 @@
   display: none;
 }
 
-/* Show bottom nav only on mobile devices (small phones and below) */
-@media (max-width: 550px) {
+/* Show bottom nav only on mobile devices */
+@media (max-width: 639px) {
   .bottom-nav-container {
     display: block;
   }
@@ -246,8 +246,16 @@
    RESPONSIVE ADJUSTMENTS
    ============================================ */
 
-/* Small mobile devices */
-@media (max-width: 375px) {
+/* Spacing and font adjustments for extra small screens */
+@media (max-width: 480px) {
+  .bottom-nav-items {
+    padding: 0 20px;
+  }
+  
+  .nav-item {
+    max-width: 80px;
+  }
+  
   .bottom-nav-container {
     height: 60px;
   }
@@ -263,17 +271,6 @@
   
   .nav-label {
     font-size: 0.6rem;
-  }
-}
-
-/* Larger mobile devices and tablets */
-@media (min-width: 376px) and (max-width: 480px) {
-  .bottom-nav-items {
-    padding: 0 20px;
-  }
-  
-  .nav-item {
-    max-width: 80px;
   }
 }
 

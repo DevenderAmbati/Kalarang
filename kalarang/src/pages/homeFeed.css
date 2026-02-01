@@ -99,7 +99,8 @@
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+/* Tablet */
+@media (min-width: 640px) and (max-width: 1023px) {
   .stories-heading {
     font-size: 1.1rem;
     padding: 0 0.25rem;
@@ -129,6 +130,38 @@
   }
 }
 
+/* Mobile */
+@media (max-width: 639px) {
+  .stories-heading {
+    font-size: 1.1rem;
+    padding: 0 0.25rem;
+  }
+
+  .stories-container {
+    gap: 0.75rem;
+    padding: 0.25rem 0 0.25rem 0.5rem;
+  }
+
+  .story-square {
+    width: 75px;
+    height: 75px;
+    border-radius: 8px;
+  }
+
+  .story-user-icon {
+    width: 26px;
+    height: 26px;
+    bottom: 4px;
+    left: 4px;
+  }
+
+  .story-name {
+    font-size: 0.75rem;
+    max-width: 75px;
+  }
+}
+
+/* Spacing and font adjustments for extra small screens */
 @media (max-width: 480px) {
   .stories-container {
     gap: 0.5rem;
@@ -153,24 +186,6 @@
   .story-name {
     font-size: 0.7rem;
     max-width: 60px;
-  }
-}
-
-@media (min-width: 1200px) {
-  .story-square {
-    width: 100px;
-    height: 100px;
-  }
-
-  .story-user-icon {
-    width: 32px;
-    height: 32px;
-    bottom: 6px;
-    left: 6px;
-  }
-
-  .story-name {
-    max-width: 100px;
   }
 }
 
@@ -284,7 +299,42 @@
   font-weight: 600;
 }
 
-@media (max-width: 768px) {
+/* Tablet */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .story-fullscreen-content {
+    padding: 0.5rem;
+    gap: 0.75rem;
+  }
+
+  .story-fullscreen-image {
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  .story-fullscreen-info {
+    top: 1rem;
+    left: 1rem;
+    padding: 0.5rem 1rem;
+  }
+
+  .story-fullscreen-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .story-fullscreen-name {
+    font-size: 0.9rem;
+  }
+
+  .story-close-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.25rem;
+  }
+}
+
+/* Mobile */
+@media (max-width: 639px) {
   .story-fullscreen-content {
     padding: 0.5rem;
     gap: 0.75rem;
@@ -401,7 +451,31 @@
   transform: translateY(0);
 }
 
-@media (max-width: 768px) {
+/* Tablet */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .story-fullscreen-actions {
+    bottom: 1.5rem;
+    max-width: 100%;
+  }
+
+  .story-price {
+    font-size: 1rem;
+    padding: 0.4rem 1rem;
+    bottom: 0.75rem;
+  }
+
+  .story-buttons {
+    gap: 0.75rem;
+  }
+
+  .story-btn {
+    padding: 0.875rem 1.5rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Mobile */
+@media (max-width: 639px) {
   .story-fullscreen-actions {
     bottom: 1.5rem;
     max-width: 100%;
@@ -432,7 +506,8 @@
   margin-top: -1rem;
 }
 
-@media (max-width: 768px) {
+/* Tablet */
+@media (min-width: 640px) and (max-width: 1023px) {
   .artwork-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 1rem;
@@ -440,18 +515,20 @@
   }
 }
 
+/* Mobile */
+@media (max-width: 639px) {
+  .artwork-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    padding: 1rem 0.75rem;
+  }
+}
+
+/* Spacing and font adjustments for extra small screens */
 @media (max-width: 480px) {
   .artwork-grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 1rem;
     padding: 1rem 0.5rem;
-  }
-}
-
-@media (min-width: 1200px) {
-  .artwork-grid {
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 2rem;
-    padding: 2rem 1.5rem;
   }
 }

@@ -22,6 +22,7 @@ const CreateArtwork: React.FC = () => {
     width: '',
     height: '',
     price: '',
+    isCommissioned: false,
   });
 
   const maxImages = 6;
@@ -71,7 +72,7 @@ const CreateArtwork: React.FC = () => {
   const handleFormDataChange = useCallback((field: keyof ArtworkFormData, value: string) => {
     setFormData(prev => ({
       ...prev,
-      [field]: value,
+      [field]: field === 'isCommissioned' ? value === 'true' : value,
     }));
   }, []);
 
@@ -132,25 +133,25 @@ const CreateArtwork: React.FC = () => {
         />
 
         {/* Action Buttons */}
-        <div className="action-buttons">
+        <div className="button-group">
           <button
             type="button"
-            className="button button-secondary"
+            className="button button-outline-green"
             onClick={handleSaveToGallery}
           >
-            Save artwork to gallery
+            Save to gallery
           </button>
           
-          <div className="button-group">
+          {!formData.isCommissioned && (
             <button
               type="button"
               className="button button-primary"
               onClick={handlePublish}
               disabled={!isFormValid}
             >
-              Publish artwork to feature
+              Publish to feature
             </button>
-          </div>
+          )}
         </div>
       </div>
     </div>

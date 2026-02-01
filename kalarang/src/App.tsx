@@ -16,6 +16,7 @@ import Favourites from "./pages/Favourites";
 import Portfolio from "./pages/Portfolio";
 import Profile from "./pages/Profile";
 import CardDetail from "./pages/CardDetail";
+import CreateUsername from "./pages/CreateUsername";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
@@ -31,6 +32,11 @@ function App() {
   // Helper function to check if user is authenticated
   const isAuthenticated = () => {
     return firebaseUser !== null && appUser !== null;
+  };
+
+  // Helper function to check if artist needs to create username
+  const needsUsernameCreation = () => {
+    return appUser?.role === "artist" && !appUser?.username;
   };
 
   const handleLogin = () => {
@@ -96,6 +102,20 @@ function App() {
           element={isAuthenticated() ? <Navigate to="/home" /> : <SignUp onSignUp={handleSignUp} />}
         />
 
+        {/* Username creation route for artists */}
+        <Route
+          path="/create-username"
+          element={
+            <ProtectedRoute>
+              {appUser?.role === "artist" && !appUser?.username ? (
+                <CreateUsername />
+              ) : (
+                <Navigate to={appUser?.role === "artist" ? "/artist" : "/dashboard"} replace />
+              )}
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/reset-password"
           element={isAuthenticated() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} /> : <ResetPassword />}
@@ -120,7 +140,11 @@ function App() {
           path="/upload"
           element={
             <ProtectedRoute>
-              <Upload />
+              {needsUsernameCreation() ? (
+                <Navigate to="/create-username" replace />
+              ) : (
+                <Upload />
+              )}
             </ProtectedRoute>
           }
         />
@@ -130,7 +154,11 @@ function App() {
           element={
             <ProtectedRoute>
               {appUser?.role === "artist" ? (
-                <ArtistLanding />
+                needsUsernameCreation() ? (
+                  <Navigate to="/create-username" replace />
+                ) : (
+                  <ArtistLanding />
+                )
               ) : (
                 <Navigate to="/dashboard" replace />
               )}
@@ -166,7 +194,11 @@ function App() {
           path="/profile"
           element={
             <ProtectedRoute>
-              <Profile />
+              {needsUsernameCreation() ? (
+                <Navigate to="/create-username" replace />
+              ) : (
+                <Profile />
+              )}
             </ProtectedRoute>
           }
         />
@@ -175,7 +207,11 @@ function App() {
           path="/home"
           element={
             <ProtectedRoute>
-              <HomeFeed />
+              {needsUsernameCreation() ? (
+                <Navigate to="/create-username" replace />
+              ) : (
+                <HomeFeed />
+              )}
             </ProtectedRoute>
           }
         />
@@ -184,7 +220,11 @@ function App() {
           path="/discover"
           element={
             <ProtectedRoute>
-              <Discover />
+              {needsUsernameCreation() ? (
+                <Navigate to="/create-username" replace />
+              ) : (
+                <Discover />
+              )}
             </ProtectedRoute>
           }
         />
@@ -193,7 +233,11 @@ function App() {
           path="/post"
           element={
             <ProtectedRoute>
-              <Upload />
+              {needsUsernameCreation() ? (
+                <Navigate to="/create-username" replace />
+              ) : (
+                <Upload />
+              )}
             </ProtectedRoute>
           }
         />
@@ -202,7 +246,11 @@ function App() {
           path="/favourites"
           element={
             <ProtectedRoute>
-              <Favourites />
+              {needsUsernameCreation() ? (
+                <Navigate to="/create-username" replace />
+              ) : (
+                <Favourites />
+              )}
             </ProtectedRoute>
           }
         />
@@ -211,7 +259,11 @@ function App() {
           path="/portfolio"
           element={
             <ProtectedRoute>
-              <Portfolio />
+              {needsUsernameCreation() ? (
+                <Navigate to="/create-username" replace />
+              ) : (
+                <Portfolio />
+              )}
             </ProtectedRoute>
           }
         />

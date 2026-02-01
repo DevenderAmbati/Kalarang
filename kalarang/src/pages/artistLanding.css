@@ -693,8 +693,8 @@ artistLanding.css
   50% { transform: translate(50px, 50px); }
 }
 
-/* Mobile Responsiveness */
-@media (max-width: 768px) {
+/* Tablet Responsiveness */
+@media (min-width: 640px) and (max-width: 1023px) {
   .hero-title {
     font-size: 2rem;
   }
@@ -794,6 +794,108 @@ artistLanding.css
   }
 }
 
+/* Mobile Responsiveness */
+@media (max-width: 639px) {
+  .hero-title {
+    font-size: 2rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1.125rem;
+  }
+
+  .vision-container {
+    padding: 2.5rem 2rem;
+  }
+
+  .vision-title {
+    font-size: 1.75rem;
+  }
+
+  .vision-text {
+    font-size: 1rem;
+  }
+
+  .artist-landing .section-title {
+    font-size: 2rem;
+  }
+
+  .artist-landing .section-subtitle {
+    font-size: 1rem;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .artist-feature-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .journey-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .journey-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .buyer-features-container {
+    padding: 2.5rem 2rem;
+  }
+
+  .buyer-section-title {
+    font-size: 1.5rem;
+  }
+
+  .buyer-section-intro {
+    font-size: 1rem;
+  }
+
+  .buyer-features-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .buyer-feature-item {
+    padding: 1.5rem;
+  }
+
+  .buyer-feature-title {
+    font-size: 1rem;
+  }
+
+  .buyer-feature-desc {
+    font-size: 0.875rem;
+  }
+
+  .buyer-tagline {
+    font-size: 1rem;
+  }
+
+  .early-access-container {
+    padding: 2.5rem 2rem;
+  }
+
+  .early-access-title {
+    font-size: 1.5rem;
+  }
+
+  .early-access-text {
+    font-size: 1rem;
+  }
+
+  .cta-button {
+    width: 100%;
+    max-width: 400px;
+    padding: 1rem 2.5rem;
+    font-size: 1rem;
+  }
+}
+
+/* Spacing and font adjustments for extra small screens */
 @media (max-width: 480px) {
   .artist-landing {
     padding: 1.5rem 0.75rem;

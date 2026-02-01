@@ -10,6 +10,7 @@ export interface ArtworkFormData {
   width: string;
   height: string;
   price: string;
+  isCommissioned: boolean;
 }
 
 interface ArtworkMetadataFormProps {
@@ -159,6 +160,33 @@ const ArtworkMetadataForm: React.FC<ArtworkMetadataFormProps> = ({
                 required
               />
             </div>
+          </div>
+
+          <div className="form-field full-width">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <label className="form-label" style={{ marginBottom: 0 }}>Commissioned Work</label>
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={formData.isCommissioned}
+                  onChange={(e) => onFormDataChange('isCommissioned', e.target.checked.toString())}
+                />
+                <span className="toggle-slider"></span>
+              </label>
+            </div>
+            {formData.isCommissioned && (
+              <div style={{
+                marginTop: '0.25rem',
+                padding: '0.5rem',
+                backgroundColor: 'var(--color-peach-light, #FFF5E1)',
+                border: '1px solid var(--color-peach, #FFD4A3)',
+                borderRadius: '0.5rem',
+                fontSize: '0.75rem',
+                color: 'var(--color-royal, #2C2C54)',
+              }}>
+                <span>ℹ️ Commissioned work cannot be published</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

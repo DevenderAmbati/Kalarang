@@ -23,7 +23,7 @@
 }
 
 /* Hide collapsed sidebar on mobile devices */
-@media (max-width: 550px) {
+@media (max-width: 639px) {
   .collapsed-sidebar-container {
     display: none;
   }

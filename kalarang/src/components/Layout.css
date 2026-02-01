@@ -21,7 +21,7 @@
    ============================================ */
 
 /* Hide desktop sidebar on mobile, adjust main content */
-@media (max-width: 550px) {
+@media (max-width: 639px) {
   /* Hide the desktop sidebar completely on mobile */
   .sidebar-container {
     display: none !important;
@@ -50,7 +50,7 @@
 }
 
 /* Desktop view - ensure bottom nav is hidden */
-@media (min-width: 550px) {
+@media (min-width: 640px) {
   .layout-main-content {
     padding-bottom: 0;
   }

@@ -5,6 +5,7 @@ export interface AppUser {
   name: string;
   email: string;
   role: UserRole;
+  username?: string; // Optional username field for artists
   createdAt: Date;
   provider: "password" | "google";
 }

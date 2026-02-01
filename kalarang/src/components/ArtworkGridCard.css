@@ -162,10 +162,8 @@
   transition: background-color var(--transition-base);
 }
 
-
-
 /* Tablet Styles */
-@media (max-width: 1024px) {
+@media (min-width: 640px) and (max-width: 1023px) {
   .artwork-grid-card-content {
     padding: 8px 10px;
     gap: 6px;
@@ -203,7 +201,7 @@
 }
 
 /* Mobile Styles */
-@media (max-width: 768px) {
+@media (max-width: 639px) {
   .artwork-grid-card-content {
     padding: 8px 10px;
     gap: 6px;

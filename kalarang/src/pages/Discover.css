@@ -224,7 +224,7 @@
 }
 
 /* Tablet Styles */
-@media (max-width: 1024px) {
+@media (min-width: 640px) and (max-width: 1023px) {
   .discover-header {
     margin-bottom: 16px;
     padding: 1rem 0.75rem 0;
@@ -268,7 +268,7 @@
 }
 
 /* Mobile Styles */
-@media (max-width: 768px) {
+@media (max-width: 639px) {
   .discover-header {
     margin-bottom: 14px;
     padding: 0.75rem 0.75rem 0;

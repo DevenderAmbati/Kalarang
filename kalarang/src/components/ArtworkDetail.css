@@ -325,8 +325,8 @@
   transform: translateY(0);
 }
 
-/* Responsive Design */
-@media (max-width: 1024px) {
+/* Tablet Responsiveness */
+@media (min-width: 640px) and (max-width: 1023px) {
   .artwork-detail-content {
     grid-template-columns: 1fr;
     gap: 24px;
@@ -339,9 +339,7 @@
   .artwork-main-image-wrapper {
     height: 400px;
   }
-}
-
-@media (max-width: 768px) {
+  
   .artwork-detail {
     padding: 12px;
   }
@@ -421,6 +419,101 @@
   }
 }
 
+/* Mobile Responsiveness */
+@media (max-width: 639px) {
+  .artwork-detail-content {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .artwork-detail-title {
+    font-size: 1.6rem;
+  }
+
+  .artwork-main-image-wrapper {
+    height: 400px;
+  }
+  
+  .artwork-detail {
+    padding: 12px;
+  }
+
+  .artwork-detail-top-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+  }
+
+  .user-avatar-wrapper {
+    align-self: flex-end;
+  }
+
+  .artwork-main-image-wrapper {
+    height: 350px;
+  }
+
+  .artwork-detail-content {
+    gap: 20px;
+  }
+
+  .artwork-detail-right {
+    gap: 16px;
+  }
+
+  .artwork-detail-title {
+    font-size: 1.4rem;
+  }
+
+  .artwork-metadata {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .metadata-item {
+    padding-bottom: 10px;
+  }
+
+  .metadata-label {
+    font-size: 0.75rem;
+  }
+
+  .metadata-value {
+    font-size: 0.9rem;
+  }
+
+  .metadata-price {
+    font-size: 1rem;
+  }
+
+  .artwork-description-detail {
+    padding: 14px;
+  }
+
+  .artwork-description-detail p {
+    font-size: 0.85rem;
+  }
+
+  .artwork-actions {
+    gap: 10px;
+  }
+
+  .action-icons {
+    display: flex;
+    gap: 8px;
+  }
+
+  .reach-out-button {
+    flex: 1;
+  }
+
+  .thumbnail-wrapper {
+    flex-shrink: 0;
+  }
+}
+
+/* Spacing and font adjustments for extra small screens */
 @media (max-width: 480px) {
   .artwork-detail {
     padding: 10px;
