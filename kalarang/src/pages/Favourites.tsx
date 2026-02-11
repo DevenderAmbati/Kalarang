@@ -1,77 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 import { Artwork } from '../components/ArtworkGrid';
+import EmptyState from '../components/EmptyState';
+import LoadingState from '../components/LoadingState';
+import { getUserFavoriteArtworkIds } from '../services/interactionService';
+import { getArtwork } from '../services/artworkService';
+import girlAnimation from '../animations/girl bangs computer.json';
+import noContentAnimation from '../animations/no content.json';
 import './Discover.css';
-
-// Mock favorite artworks data - these should all start as favorites
-const MOCK_FAVORITE_ARTWORKS: Artwork[] = [
-  {
-    id: '1',
-    title: 'Sunset Dreams',
-    artworkImage: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800',
-    artistName: 'Priya Sharma',
-    artistAvatar: 'https://i.pravatar.cc/150?img=1',
-    price: 15000,
-  },
-  {
-    id: '2',
-    title: 'Urban Symphony',
-    artworkImage: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800',
-    artistName: 'Rajesh Kumar',
-    artistAvatar: 'https://i.pravatar.cc/150?img=2',
-    price: 25000,
-  },
-  {
-    id: '3',
-    title: 'Nature\'s Canvas',
-    artworkImage: 'https://images.unsplash.com/photo-1547891654-e66ed7ebb968?w=800',
-    artistName: 'Ananya Desai',
-    artistAvatar: 'https://i.pravatar.cc/150?img=3',
-    price: 18000,
-  },
-  {
-    id: '4',
-    title: 'Abstract Thoughts',
-    artworkImage: 'https://images.unsplash.com/photo-1561214115-f2f134cc4912?w=800',
-    artistName: 'Vikram Singh',
-    artistAvatar: 'https://i.pravatar.cc/150?img=4',
-    price: 22000,
-  },
-  {
-    id: '5',
-    title: 'Ethereal Beauty',
-    artworkImage: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=800',
-    artistName: 'Meera Patel',
-    artistAvatar: 'https://i.pravatar.cc/150?img=5',
-    price: 30000,
-  },
-  {
-    id: '6',
-    title: 'Modern Minimalism',
-    artworkImage: 'https://images.unsplash.com/photo-1536924940846-227afb31e2a5?w=800',
-    artistName: 'Arjun Mehta',
-    artistAvatar: 'https://i.pravatar.cc/150?img=6',
-    price: 20000,
-  },
-  {
-    id: '7',
-    title: 'Golden Hour',
-    artworkImage: 'https://images.unsplash.com/photo-1506806732259-39c2d0268443?w=800',
-    artistName: 'Kavita Reddy',
-    artistAvatar: 'https://i.pravatar.cc/150?img=7',
-    price: 28000,
-  },
-  {
-    id: '8',
-    title: 'Ocean Whispers',
-    artworkImage: 'https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=800',
-    artistName: 'Aditya Joshi',
-    artistAvatar: 'https://i.pravatar.cc/150?img=8',
-    price: 19500,
-  },
-];
 
 // Custom Artwork Card Component for Favorites with filled hearts by default
 interface FavoriteArtworkCardProps {
@@ -154,8 +93,54 @@ const FavoriteArtworkCard: React.FC<FavoriteArtworkCardProps> = ({
 
 const Favourites: React.FC = () => {
   const navigate = useNavigate();
-  const [favoriteArtworks, setFavoriteArtworks] = useState<Artwork[]>(MOCK_FAVORITE_ARTWORKS);
+  const { appUser } = useAuth();
+  const [favoriteArtworks, setFavoriteArtworks] = useState<Artwork[]>([]);
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadFavorites();
+  }, [appUser]);
+
+  const loadFavorites = async () => {
+    if (!appUser) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const favoriteIds = await getUserFavoriteArtworkIds(appUser.uid);
+      
+      if (favoriteIds.length === 0) {
+        setFavoriteArtworks([]);
+        return;
+      }
+
+      // Fetch all favorite artworks
+      const artworksPromises = favoriteIds.map(id => getArtwork(id));
+      const artworks = await Promise.all(artworksPromises);
+      
+      // Filter out any null results and convert to Artwork type
+      const validArtworks: Artwork[] = artworks
+        .filter(artwork => artwork !== null)
+        .map(artwork => ({
+          id: artwork!.id,
+          title: artwork!.title,
+          artworkImage: artwork!.images[0],
+          artistName: artwork!.artistName,
+          artistAvatar: artwork!.artistAvatar || '/artist.png',
+          price: artwork!.price,
+        }));
+
+      setFavoriteArtworks(validArtworks);
+    } catch (error) {
+      console.error('Error loading favorites:', error);
+      setFavoriteArtworks([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -206,7 +191,13 @@ const Favourites: React.FC = () => {
 
         {/* Artwork Grid */}
         <div className="discover-content favourites-content">
-          {favoriteArtworks.length > 0 ? (
+          {loading ? (
+            <LoadingState 
+              animation={girlAnimation}
+              message="Loading your favorites..." 
+              fullHeight 
+            />
+          ) : favoriteArtworks.length > 0 ? (
             <div className="artwork-grid">
               {favoriteArtworks.map((artwork) => (
                 <FavoriteArtworkCard
@@ -219,44 +210,18 @@ const Favourites: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div style={styles.emptyState}>
-              <span style={styles.emoji}>💝</span>
-              <h3 style={styles.emptyTitle}>Your Favorites Are Empty</h3>
-              <p style={styles.emptyText}>
-                Start exploring and add some artworks to your personal collection!
-              </p>
-            </div>
+            <EmptyState
+              animation={noContentAnimation}
+              title="Your Favorites Collection Awaits"
+              description="Discover amazing artworks and save your favorites here. Start exploring and build your personal art collection!"
+              actionLabel="Discover Artworks"
+              actionPath="/discover"
+            />
           )}
         </div>
       </div>
     </Layout>
   );
-};
-
-const styles = {
-  emptyState: {
-    textAlign: 'center' as const,
-    padding: '4rem 2rem',
-    backgroundColor: 'rgba(47, 164, 169, 0.05)',
-    borderRadius: '12px',
-    border: '2px dashed rgba(47, 164, 169, 0.2)',
-    marginTop: '2rem',
-  },
-  emoji: {
-    fontSize: '4rem',
-    display: 'block',
-    marginBottom: '1rem',
-  },
-  emptyTitle: {
-    fontSize: '1.75rem',
-    fontWeight: 600,
-    color: 'var(--color-primary)',
-    marginBottom: '1rem',
-  },
-  emptyText: {
-    fontSize: '1.1rem',
-    color: 'var(--color-text-secondary)',
-  },
 };
 
 export default Favourites;

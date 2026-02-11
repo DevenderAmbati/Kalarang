@@ -1,16 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import ArtworkDetail, { Artwork, Artist } from '../components/ArtworkDetail';
+import ArtworkDetail, { Artwork as ArtworkDetailType, Artist } from '../components/ArtworkDetail';
 import { useAuth } from '../context/AuthContext';
 import { logout } from '../services/authService';
+import { getArtwork, incrementArtworkViews } from '../services/artworkService';
+import { 
+  likeArtwork, 
+  unlikeArtwork, 
+  hasLikedArtwork, 
+  followArtist, 
+  unfollowArtist, 
+  isFollowingArtist 
+} from '../services/interactionService';
+import { toast } from 'react-toastify';
 
 const CardDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { appUser } = useAuth();
-  const [artwork, setArtwork] = useState<Artwork | null>(null);
+  const navigate = useNavigate();
+  const [artwork, setArtwork] = useState<ArtworkDetailType | null>(null);
   const [artist, setArtist] = useState<Artist | null>(null);
   const [isLiked, setIsLiked] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const handleLogout = async () => {
     await logout();
@@ -18,67 +30,130 @@ const CardDetail: React.FC = () => {
   };
 
   useEffect(() => {
-    // TODO: Fetch actual artwork data from your backend/Firebase using the id
-    // For now, using sample data
-    const sampleArtwork: Artwork = {
-      id: parseInt(id || '1'),
-      title: 'Sunset over the Mountains',
-      artworkImage: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800',
-      thumbnails: [
-        'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=200',
-        'https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?w=200',
-        'https://images.unsplash.com/photo-1577083165633-14ebcdb0f658?w=200',
-        'https://images.unsplash.com/photo-1561214115-f2f134cc4912?w=200',
-      ],
-      medium: 'Oil on Canvas',
-      size: '24" × 36"',
-      createdOn: '2023-08-15',
-      price: 45000,
-      description: 'A breathtaking landscape capturing the golden hour as the sun sets behind majestic mountain peaks. This piece explores the interplay of light and shadow, creating a serene and contemplative atmosphere.',
-    };
+    if (id) {
+      loadArtwork();
+    }
+  }, [id, appUser]);
 
-    const sampleArtist: Artist = {
-      id: 'artist_123',
-      name: 'Priya Sharma',
-      avatar: 'https://i.pravatar.cc/150?img=5',
-      isFollowing: false,
-    };
+  const loadArtwork = async () => {
+    if (!id) return;
 
-    setArtwork(sampleArtwork);
-    setArtist(sampleArtist);
-  }, [id]);
+    try {
+      setLoading(true);
+      const fetchedArtwork = await getArtwork(id);
+      
+      if (!fetchedArtwork) {
+        toast.error('Artwork not found');
+        navigate('/home');
+        return;
+      }
 
-  const handleLike = (artworkId: number) => {
-    setIsLiked(!isLiked);
-    // TODO: Implement like logic with your backend
-    console.log('Liked artwork:', artworkId);
+      // Increment view count
+      await incrementArtworkViews(id);
+
+      // Convert to ArtworkDetailType
+      const artworkDetail: ArtworkDetailType = {
+        id: parseInt(fetchedArtwork.id) || 0,
+        title: fetchedArtwork.title,
+        artworkImage: fetchedArtwork.images[0],
+        thumbnails: fetchedArtwork.images.slice(1, 5),
+        medium: fetchedArtwork.medium,
+        size: fetchedArtwork.width && fetchedArtwork.height 
+          ? `${fetchedArtwork.width}" × ${fetchedArtwork.height}"`
+          : 'Size not specified',
+        createdOn: fetchedArtwork.createdDate || fetchedArtwork.createdAt.toLocaleDateString(),
+        price: fetchedArtwork.price,
+        description: fetchedArtwork.description,
+      };
+
+      setArtwork(artworkDetail);
+
+      // Set up artist
+      const artistData: Artist = {
+        id: fetchedArtwork.artistId,
+        name: fetchedArtwork.artistName,
+        avatar: fetchedArtwork.artistAvatar || 'https://i.pravatar.cc/150?img=1',
+        isFollowing: false,
+      };
+
+      // Check if user is following artist
+      if (appUser && appUser.uid !== fetchedArtwork.artistId) {
+        const following = await isFollowingArtist(appUser.uid, fetchedArtwork.artistId);
+        artistData.isFollowing = following;
+
+        // Check if user has liked the artwork
+        const liked = await hasLikedArtwork(appUser.uid, id);
+        setIsLiked(liked);
+      }
+
+      setArtist(artistData);
+    } catch (error) {
+      console.error('Error loading artwork:', error);
+      toast.error('Failed to load artwork');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLike = async (artworkId: number) => {
+    if (!appUser || !id) {
+      toast.error('Please log in to like artworks');
+      return;
+    }
+
+    try {
+      if (isLiked) {
+        await unlikeArtwork(appUser.uid, id);
+        setIsLiked(false);
+      } else {
+        await likeArtwork(appUser.uid, id);
+        setIsLiked(true);
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      toast.error('Failed to update like');
+    }
   };
 
   const handleShare = (artworkId: number) => {
-    // TODO: Implement share logic
-    console.log('Share artwork:', artworkId);
-    if (navigator.share) {
+    if (navigator.share && artwork) {
       navigator.share({
-        title: artwork?.title,
-        text: `Check out this artwork: ${artwork?.title}`,
+        title: artwork.title,
+        text: `Check out this artwork: ${artwork.title}`,
         url: window.location.href,
-      });
+      }).catch(err => console.log('Error sharing:', err));
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success('Link copied to clipboard!');
     }
   };
 
   const handleReachOut = (artistId: string) => {
-    // TODO: Implement reach out logic (e.g., open chat, send message)
-    console.log('Reach out to artist:', artistId);
+    // TODO: Implement messaging system
+    toast.info('Messaging feature coming soon!');
   };
 
-  const handleFollow = (artistId: string) => {
-    if (artist) {
-      setArtist({
-        ...artist,
-        isFollowing: !artist.isFollowing,
-      });
-      // TODO: Implement follow logic with your backend
-      console.log('Follow artist:', artistId);
+  const handleFollow = async (artistId: string) => {
+    if (!appUser) {
+      toast.error('Please log in to follow artists');
+      return;
+    }
+
+    if (!artist) return;
+
+    try {
+      if (artist.isFollowing) {
+        await unfollowArtist(appUser.uid, artistId);
+        setArtist({ ...artist, isFollowing: false });
+        toast.success('Unfollowed artist');
+      } else {
+        await followArtist(appUser.uid, artistId);
+        setArtist({ ...artist, isFollowing: true });
+        toast.success('Following artist');
+      }
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+      toast.error('Failed to update follow status');
     }
   };
 
@@ -86,7 +161,7 @@ const CardDetail: React.FC = () => {
     console.log('Thumbnail clicked:', imageUrl);
   };
 
-  if (!artwork || !artist) {
+  if (loading || !artwork || !artist) {
     return (
       <Layout onLogout={handleLogout} pageTitle="Loading...">
         <div style={{ padding: '2rem', textAlign: 'center' }}>

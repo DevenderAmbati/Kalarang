@@ -6,6 +6,7 @@ export interface GalleryImage {
   src: string;
   alt: string;
   aspectRatio?: number; // width/height ratio
+  published?: boolean;
 }
 
 export interface GalleryTabProps {
@@ -35,11 +36,13 @@ const GalleryTab: React.FC<GalleryTabProps> = ({ images, onImageClick }) => {
   if (images.length === 0) {
     return (
       <div className="gallery-tab-empty">
-        <div className="gallery-tab-empty-icon">🖼️</div>
-        <h3 className="gallery-tab-empty-title">No Images Yet</h3>
-        <p className="gallery-tab-empty-text">
-          Your gallery images will appear here once you start adding them.
-        </p>
+        <div className="gallery-tab-empty-content">
+          <div className="gallery-tab-empty-icon">🎨</div>
+          <h3 className="gallery-tab-empty-title">Your Canvas Awaits</h3>
+          <p className="gallery-tab-empty-text">
+            Transform this space into a stunning gallery! Upload your artwork to begin your creative journey.
+          </p>
+        </div>
       </div>
     );
   }
@@ -68,6 +71,11 @@ const GalleryTab: React.FC<GalleryTabProps> = ({ images, onImageClick }) => {
                   aspectRatio: image.aspectRatio || 'auto'
                 }}
               />
+              {image.published === false && (
+                <div className="gallery-unpublished-badge">
+                  <span>Unpublished</span>
+                </div>
+              )}
               <div className="gallery-tab-image-overlay" />
             </div>
           </div>

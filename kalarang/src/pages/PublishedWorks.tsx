@@ -1,91 +1,82 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { getArtistArtworks } from '../services/artworkService';
+import { Artwork } from '../types/artwork';
 import ArtworkGrid from '../components/ArtworkGrid';
+import EmptyState from '../components/EmptyState';
+import LoadingState from '../components/LoadingState';
+import { useNavigate } from 'react-router-dom';
+import noContentAnimation from '../animations/no content.json';
+import lineArt2Animation from '../animations/Line art (2).json';
 import './PublishedWorks.css';
 
-// Mock published works data
-const MOCK_PUBLISHED_WORKS = [
-  {
-    id: '1',
-    title: 'Featured in Art Monthly Magazine',
-    artworkImage: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800',
-    artistName: 'Artist Name',
-    artistAvatar: 'https://i.pravatar.cc/150?img=1',
-    price: 45000,
-  },
-  {
-    id: '2',
-    title: 'Gallery Exhibition - Abstract Series',
-    artworkImage: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800',
-    artistName: 'Artist Name',
-    artistAvatar: 'https://i.pravatar.cc/150?img=1',
-    price: 35000,
-  },
-  {
-    id: '3',
-    title: 'Published Book Cover Design',
-    artworkImage: 'https://images.unsplash.com/photo-1561214115-f2f134cc4912?w=800',
-    artistName: 'Artist Name',
-    artistAvatar: 'https://i.pravatar.cc/150?img=1',
-    price: 28000,
-  },
-  {
-    id: '4',
-    title: 'Art Fair Collection - 2025',
-    artworkImage: 'https://images.unsplash.com/photo-1547891654-e66ed7ebb968?w=800',
-    artistName: 'Artist Name',
-    artistAvatar: 'https://i.pravatar.cc/150?img=1',
-    price: 52000,
-  },
-  {
-    id: '5',
-    title: 'Museum Permanent Collection',
-    artworkImage: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=800',
-    artistName: 'Artist Name',
-    artistAvatar: 'https://i.pravatar.cc/150?img=1',
-    price: 75000,
-  },
-  {
-    id: '6',
-    title: 'International Art Review Feature',
-    artworkImage: 'https://images.unsplash.com/photo-1536924940846-227afb31e2a5?w=800',
-    artistName: 'Artist Name',
-    artistAvatar: 'https://i.pravatar.cc/150?img=1',
-    price: 38000,
-  },
-  {
-    id: '7',
-    title: 'Award Winning Landscape Series',
-    artworkImage: 'https://images.unsplash.com/photo-1506806732259-39c2d0268443?w=800',
-    artistName: 'Artist Name',
-    artistAvatar: 'https://i.pravatar.cc/150?img=1',
-    price: 42000,
-  },
-  {
-    id: '8',
-    title: 'Limited Edition Print Collection',
-    artworkImage: 'https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=800',
-    artistName: 'Artist Name',
-    artistAvatar: 'https://i.pravatar.cc/150?img=1',
-    price: 25000,
-  },
-];
-
 const PublishedWorks: React.FC = () => {
-  const handleArtworkClick = (id: string) => {
-    console.log('Published work clicked:', id);
-    // Navigate to artwork detail or show modal
+  const { appUser } = useAuth();
+  const navigate = useNavigate();
+  const [artworks, setArtworks] = useState<Artwork[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadPublishedWorks();
+  }, [appUser]);
+
+  const loadPublishedWorks = async () => {
+    if (!appUser) return;
+
+    try {
+      setLoading(true);
+      const fetchedArtworks = await getArtistArtworks(appUser.uid, true); // Only published
+      setArtworks(fetchedArtworks);
+    } catch (error) {
+      console.error('Error loading published works:', error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleArtworkClick = (id: string) => {
+    navigate(`/card/${id}`);
+  };
+
+  if (loading) {
+    return (
+      <div className="published-works-wrapper">
+        <div className="published-works-container">
+          <LoadingState 
+            animation={lineArt2Animation}
+            message="Loading your published works..." 
+            fullHeight 
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="published-works-wrapper">
       <div className="published-works-container">
- 
-        
         <div className="published-works-content">
-          <ArtworkGrid 
-            artworks={MOCK_PUBLISHED_WORKS} 
-            onArtworkClick={handleArtworkClick}
-          />
+          {artworks.length === 0 ? (
+            <EmptyState
+              animation={noContentAnimation}
+              title="Ready to Publish?"
+              description="Your portfolio is waiting for your masterpieces! Upload artwork from the Gallery tab and publish it to share with the world."
+              actionLabel="Create Artwork"
+              actionPath="/post"
+            />
+          ) : (
+            <ArtworkGrid 
+              artworks={artworks.map(artwork => ({
+                id: artwork.id,
+                title: artwork.title,
+                artworkImage: artwork.images[0],
+                artistName: artwork.artistName,
+                artistAvatar: artwork.artistAvatar || '',
+                price: artwork.price,
+              }))}
+              onArtworkClick={handleArtworkClick}
+            />
+          )}
         </div>
       </div>
     </div>

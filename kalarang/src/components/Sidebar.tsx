@@ -186,15 +186,15 @@ const styles: { [key: string]: CSSProperties } = {
   sidebar: {
     width: '260px',
     height: '100vh',
-    background: 'linear-gradient(160deg, #0B1F2A 0%, #142F3A 45%, #1F7F8B 100%)',
+    background: 'var(--sidebar-bg)',
     display: 'flex',
     flexDirection: 'column',
     position: 'fixed',
     left: 0,
     top: 0,
-    boxShadow: '4px 0 24px rgba(0, 0, 0, 0.3), inset -1px 0 0 rgba(95, 209, 216, 0.1)',
+    boxShadow: 'var(--sidebar-shadow)',
     zIndex: 1000,
-    transition: 'width 0.3s ease',
+    transition: 'width 0.3s ease, background 0.3s ease',
   },
   toggleButton: {
     position: 'absolute',
@@ -217,7 +217,7 @@ const styles: { [key: string]: CSSProperties } = {
   },
   header: {
     padding: '2rem 1.5rem 1.5rem',
-    borderBottom: '1px solid rgba(95, 209, 216, 0.15)',
+    borderBottom: '1px solid var(--sidebar-border)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',

@@ -1,9 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
 import ArtworkCard from '../components/ArtworkCard';
+import EmptyState from '../components/EmptyState';
+import LoadingState from '../components/LoadingState';
+import { getPublishedArtworks } from '../services/artworkService';
+import { likeArtwork, unlikeArtwork, hasLikedArtwork, saveArtworkToFavorites, removeArtworkFromFavorites, isArtworkInFavorites } from '../services/interactionService';
+import { Artwork } from '../types/artwork';
+import { toast } from 'react-toastify';
+import artAnimation from '../animations/no content.json';
+import africanArtAnimation from '../animations/African American Art.json';
 import './homeFeed.css';
 
 interface Story {
@@ -20,6 +28,47 @@ const HomeFeed: React.FC = () => {
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [viewedStories, setViewedStories] = useState<Set<number>>(new Set());
   const [currentSessionViewed, setCurrentSessionViewed] = useState<Set<number>>(new Set());
+  const [artworks, setArtworks] = useState<Artwork[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [likedArtworks, setLikedArtworks] = useState<Set<string>>(new Set());
+  const [savedArtworks, setSavedArtworks] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    loadArtworks();
+  }, []);
+
+  const loadArtworks = async () => {
+    try {
+      setLoading(true);
+      const fetchedArtworks = await getPublishedArtworks(20);
+      setArtworks(fetchedArtworks);
+
+      // Load user's likes and saves if logged in
+      if (appUser) {
+        const likeChecks = await Promise.all(
+          fetchedArtworks.map(artwork => hasLikedArtwork(appUser.uid, artwork.id))
+        );
+        const saveChecks = await Promise.all(
+          fetchedArtworks.map(artwork => isArtworkInFavorites(appUser.uid, artwork.id))
+        );
+
+        const liked = new Set<string>();
+        const saved = new Set<string>();
+        
+        fetchedArtworks.forEach((artwork, index) => {
+          if (likeChecks[index]) liked.add(artwork.id);
+          if (saveChecks[index]) saved.add(artwork.id);
+        });
+
+        setLikedArtworks(liked);
+        setSavedArtworks(saved);
+      }
+    } catch (error) {
+      console.error('Error loading artworks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -91,100 +140,78 @@ const HomeFeed: React.FC = () => {
     { id: 10, image: 'https://picsum.photos/300/300?random=10', name: 'Artist Ten', userIcon: '/artist.png', price: '₹16,800' },
   ];
 
-  // Sample artwork data for cards
-  const artworks = [
-    {
-      id: 1,
-      artworkImage: 'https://picsum.photos/400/300?random=11',
-      artistAvatar: '/artist.png',
-      artistName: 'Priya Sharma',
-      description: 'Vibrant sunset over the mountains with beautiful color gradients and peaceful vibes',
-    },
-    {
-      id: 2,
-      artworkImage: 'https://picsum.photos/400/300?random=12',
-      artistAvatar: '/artist.png',
-      artistName: 'Rahul Kumar',
-      description: 'Abstract geometric patterns inspired by traditional Indian art forms',
-    },
-    {
-      id: 3,
-      artworkImage: 'https://picsum.photos/400/300?random=13',
-      artistAvatar: '/artist.png',
-      artistName: 'Anita Desai',
-      description: 'Watercolor painting depicting monsoon landscapes with ethereal quality',
-    },
-    {
-      id: 4,
-      artworkImage: 'https://picsum.photos/400/300?random=14',
-      artistAvatar: '/artist.png',
-      artistName: 'Vikram Singh',
-      description: 'Modern digital art exploring themes of identity and culture',
-    },
-    {
-      id: 5,
-      artworkImage: 'https://picsum.photos/400/300?random=15',
-      artistAvatar: '/artist.png',
-      artistName: 'Meera Patel',
-      description: 'Detailed pen and ink illustration of urban architecture and city life',
-    },
-    {
-      id: 6,
-      artworkImage: 'https://picsum.photos/400/300?random=16',
-      artistAvatar: '/artist.png',
-      artistName: 'Arjun Reddy',
-      description: 'Mixed media collage combining photography and painting techniques',
-    },
-    {
-      id: 7,
-      artworkImage: 'https://picsum.photos/400/300?random=17',
-      artistAvatar: '/artist.png',
-      artistName: 'Kavya Nair',
-      description: 'Portrait series capturing emotions and expressions in vivid colors',
-    },
-    {
-      id: 8,
-      artworkImage: 'https://picsum.photos/400/300?random=18',
-      artistAvatar: '/artist.png',
-      artistName: 'Sanjay Mehta',
-      description: 'Minimalist landscape photography with dramatic lighting and composition',
-    },
-  ];
-
-  const [likedArtworks, setLikedArtworks] = useState<Set<number>>(new Set());
-  const [savedArtworks, setSavedArtworks] = useState<Set<number>>(new Set());
-
-  const handleArtworkClick = (id: number) => {
+  const handleArtworkClick = (id: number | string) => {
     navigate(`/card/${id}`);
   };
 
-  const handleLike = (id: number) => {
-    setLikedArtworks(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
+  const handleLike = async (id: number | string) => {
+    if (!appUser) {
+      toast.error('Please log in to like artworks');
+      return;
+    }
+
+    const artworkId = id.toString();
+    const isLiked = likedArtworks.has(artworkId);
+
+    try {
+      if (isLiked) {
+        await unlikeArtwork(appUser.uid, artworkId);
+        setLikedArtworks(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(artworkId);
+          return newSet;
+        });
       } else {
-        newSet.add(id);
+        await likeArtwork(appUser.uid, artworkId);
+        setLikedArtworks(prev => new Set(prev).add(artworkId));
       }
-      return newSet;
-    });
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      toast.error('Failed to update like');
+    }
   };
 
-  const handleShare = (id: number) => {
-    console.log('Share artwork:', id);
-    // Implement share functionality
+  const handleShare = (id: number | string) => {
+    const artwork = artworks.find(a => a.id === id.toString());
+    if (artwork && navigator.share) {
+      navigator.share({
+        title: artwork.title,
+        text: `Check out "${artwork.title}" by ${artwork.artistName}`,
+        url: `${window.location.origin}/card/${id}`,
+      }).catch(err => console.log('Error sharing:', err));
+    } else {
+      navigator.clipboard.writeText(`${window.location.origin}/card/${id}`);
+      toast.success('Link copied to clipboard!');
+    }
   };
 
-  const handleSave = (id: number) => {
-    setSavedArtworks(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
+  const handleSave = async (id: number | string) => {
+    if (!appUser) {
+      toast.error('Please log in to save artworks');
+      return;
+    }
+
+    const artworkId = id.toString();
+    const isSaved = savedArtworks.has(artworkId);
+
+    try {
+      if (isSaved) {
+        await removeArtworkFromFavorites(appUser.uid, artworkId);
+        setSavedArtworks(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(artworkId);
+          return newSet;
+        });
+        toast.success('Removed from favorites');
       } else {
-        newSet.add(id);
+        await saveArtworkToFavorites(appUser.uid, artworkId);
+        setSavedArtworks(prev => new Set(prev).add(artworkId));
+        toast.success('Saved to favorites');
       }
-      return newSet;
-    });
+    } catch (error) {
+      console.error('Error toggling save:', error);
+      toast.error('Failed to update favorites');
+    }
   };
 
   // Sort stories: unviewed first, then viewed
@@ -229,25 +256,41 @@ const HomeFeed: React.FC = () => {
         </div>
 
         {/* Artwork Cards Grid */}
-        <div className="artwork-grid">
-          {artworks.map((artwork, idx) => (
-            <ArtworkCard
-              key={artwork.id}
-              id={artwork.id}
-              artworkImage={artwork.artworkImage}
-              artistAvatar={artwork.artistAvatar}
-              artistName={artwork.artistName}
-              title={artworkTitles[idx % artworkTitles.length]}
-              description={artwork.description}
-              onCardClick={handleArtworkClick}
-              onLike={handleLike}
-              onShare={handleShare}
-              onSave={handleSave}
-              isLiked={likedArtworks.has(artwork.id)}
-              isSaved={savedArtworks.has(artwork.id)}
-            />
-          ))}
-        </div>
+        {loading ? (
+          <LoadingState 
+            animation={africanArtAnimation}
+            message="Discovering amazing artworks..." 
+            fullHeight 
+          />
+        ) : artworks.length === 0 ? (
+          <EmptyState
+            animation={artAnimation}
+            title="No Artworks Yet"
+            description="Follow artists to view their works in your feed and stay updated with their latest creations."
+            actionLabel="Discover Artists"
+            actionPath="/discover"
+          />
+        ) : (
+          <div className="artwork-grid">
+            {artworks.map((artwork) => (
+              <ArtworkCard
+                key={artwork.id}
+                id={parseInt(artwork.id) || 0}
+                artworkImage={artwork.images[0]}
+                artistAvatar={artwork.artistAvatar || '/artist.png'}
+                artistName={artwork.artistName}
+                title={artwork.title}
+                description={artwork.description}
+                onCardClick={() => handleArtworkClick(artwork.id)}
+                onLike={() => handleLike(artwork.id)}
+                onShare={() => handleShare(artwork.id)}
+                onSave={() => handleSave(artwork.id)}
+                isLiked={likedArtworks.has(artwork.id)}
+                isSaved={savedArtworks.has(artwork.id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Fullscreen Story Modal */}

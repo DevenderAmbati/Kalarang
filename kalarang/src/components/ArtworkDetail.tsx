@@ -70,9 +70,9 @@ const ArtworkDetail: React.FC<ArtworkDetailProps> = ({
     }).format(price);
   };
 
-  // If no thumbnails provided, use the main image
+  // Always include the main image first, then add any additional thumbnails
   const thumbnails = artwork.thumbnails?.length 
-    ? artwork.thumbnails 
+    ? [artwork.artworkImage, ...artwork.thumbnails.filter(thumb => thumb !== artwork.artworkImage)]
     : [artwork.artworkImage];
 
   return (

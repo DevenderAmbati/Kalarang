@@ -3,10 +3,13 @@ import Layout from '../components/Layout';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '../services/authService';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import WhatsAppVerificationModal from '../components/WhatsAppVerificationModal';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
   const { appUser } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [isEditingWhatsApp, setIsEditingWhatsApp] = useState(false);
   const [hoveredButton, setHoveredButton] = useState<string | null>(null);
@@ -45,12 +48,12 @@ const Profile: React.FC = () => {
         userName: appUser?.name || 'Anonymous',
         userEmail: appUser?.email || 'Not provided'
       };
-      
+
       console.log('Sending email:', emailData);
-      
+
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       setMessageSent(true);
       setSupportMessage('');
       setTimeout(() => setMessageSent(false), 3000);
@@ -84,12 +87,12 @@ const Profile: React.FC = () => {
         reason: deleteReason,
         timestamp: new Date().toISOString()
       };
-      
+
       console.log('Deleting account:', deleteData);
-      
+
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       alert('Your account has been deleted. You will be logged out.');
       await logout();
       navigate('/');
@@ -106,6 +109,9 @@ const Profile: React.FC = () => {
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ');
   };
+
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+
 
   return (
     <Layout onLogout={handleLogout} pageTitle="Profile">
@@ -127,9 +133,41 @@ const Profile: React.FC = () => {
                   {appUser?.role === 'artist' ? '🎨 Artist' : '🎩 Art Lover'}
                 </span>
                 <span style={styles.memberSince}>
-                  since {appUser?.createdAt ? new Date(appUser.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'}
+                  since {(() => {
+                    try {
+                      if (!appUser?.createdAt) return 'N/A';
+                      const date = appUser.createdAt instanceof Date ? appUser.createdAt : new Date(appUser.createdAt);
+                      return isNaN(date.getTime()) ? 'N/A' : date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                    } catch {
+                      return 'N/A';
+                    }
+                  })()}
                 </span>
               </div>
+            </div>
+          </div>
+
+          {/* Theme Toggle Section */}
+          <div style={styles.themeSection}>
+            <div style={styles.themeToggleContainer}>
+              <span style={styles.themeDescription}>
+                {theme === 'light' ? '☀️ Light Mode' : '🌙 Dark Mode'}
+              </span>
+              <button
+                onClick={toggleTheme}
+                style={{
+                  ...styles.themeToggleButton,
+                  ...(hoveredButton === 'theme' ? {
+                    background: 'var(--gradient-primary-hover)',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 4px 8px rgba(47, 164, 169, 0.3)',
+                  } : {})
+                }}
+                onMouseEnter={() => setHoveredButton('theme')}
+                onMouseLeave={() => setHoveredButton(null)}
+              >
+                Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode
+              </button>
             </div>
           </div>
 
@@ -139,8 +177,8 @@ const Profile: React.FC = () => {
               <div style={styles.whatsappHeader}>
                 <span style={styles.whatsappLabel}> WhatsApp Number</span>
                 {!isEditingWhatsApp && (
-                  <button 
-                    onClick={() => setIsEditingWhatsApp(true)} 
+                  <button
+                    onClick={() => setIsWhatsAppModalOpen(true)}
                     style={{
                       ...styles.editButton,
                       ...(hoveredButton === 'edit' ? {
@@ -152,55 +190,14 @@ const Profile: React.FC = () => {
                     onMouseEnter={() => setHoveredButton('edit')}
                     onMouseLeave={() => setHoveredButton(null)}
                   >
-                    {whatsappNumber ? 'Edit' : 'Add'}
+                    {whatsappNumber ? 'Edit' : 'Add  +'}
                   </button>
                 )}
               </div>
-              {isEditingWhatsApp ? (
-                <div style={styles.whatsappEditContainer}>
-                  <input
-                    type="tel"
-                    value={whatsappNumber}
-                    onChange={(e) => setWhatsappNumber(e.target.value)}
-                    placeholder="Enter here"
-                    style={styles.whatsappInput}
-                  />
-                  <button 
-                    onClick={handleSaveWhatsApp} 
-                    style={{
-                      ...styles.saveButton,
-                      ...(hoveredButton === 'save' ? {
-                        background: 'var(--gradient-primary-hover)',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 8px rgba(47, 164, 169, 0.3)',
-                      } : {})
-                    }}
-                    onMouseEnter={() => setHoveredButton('save')}
-                    onMouseLeave={() => setHoveredButton(null)}
-                  >
-                    Save
-                  </button>
-                  <button 
-                    onClick={() => setIsEditingWhatsApp(false)} 
-                    style={{
-                      ...styles.cancelButton,
-                      ...(hoveredButton === 'cancel' ? {
-                        background: 'var(--primary-alpha-10)',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 2px 4px rgba(47, 164, 169, 0.2)',
-                      } : {})
-                    }}
-                    onMouseEnter={() => setHoveredButton('cancel')}
-                    onMouseLeave={() => setHoveredButton(null)}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <div style={styles.whatsappDisplay}>
-                  {whatsappNumber || 'Not added yet'}
-                </div>
-              )}
+              <div style={styles.whatsappDisplay}>
+                {whatsappNumber || 'Not added yet'}
+              </div>
+
             </div>
           )}
 
@@ -219,7 +216,7 @@ const Profile: React.FC = () => {
               style={styles.messageTextarea}
               rows={4}
             />
-            <button 
+            <button
               onClick={handleSendMessage}
               disabled={isSendingMessage || !supportMessage.trim()}
               style={{
@@ -246,10 +243,10 @@ const Profile: React.FC = () => {
             <div style={styles.supportHeader}>
               <span style={styles.supportLabel}> Account Actions</span>
             </div>
-            
+
             {!showDeleteConfirm ? (
               <div style={styles.actionButtonsContainer}>
-                <button 
+                <button
                   onClick={handleLogout}
                   style={{
                     ...styles.logoutButton,
@@ -264,7 +261,7 @@ const Profile: React.FC = () => {
                 >
                   Logout
                 </button>
-                <button 
+                <button
                   onClick={() => setShowDeleteConfirm(true)}
                   style={{
                     ...styles.deleteButton,
@@ -296,7 +293,7 @@ const Profile: React.FC = () => {
                   rows={3}
                 />
                 <div style={styles.actionButtonsContainer}>
-                  <button 
+                  <button
                     onClick={handleDeleteAccount}
                     disabled={isDeletingAccount || !deleteReason.trim()}
                     style={{
@@ -316,7 +313,7 @@ const Profile: React.FC = () => {
                   >
                     {isDeletingAccount ? 'Deleting...' : 'Confirm Delete'}
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       setShowDeleteConfirm(false);
                       setDeleteReason('');
@@ -341,6 +338,18 @@ const Profile: React.FC = () => {
           </div>
         </div>
       </div>
+    {
+      isWhatsAppModalOpen && (
+      <WhatsAppVerificationModal
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+        onVerified={(verifiedNumber: string) => {
+          setWhatsappNumber(verifiedNumber);
+          setIsWhatsAppModalOpen(false);
+        }}
+        />
+      )
+    }
     </Layout>
   );
 };
@@ -360,9 +369,9 @@ const styles = {
     gap: '1rem',
     marginBottom: '1.5rem',
     padding: '1.5rem',
-    backgroundColor: 'white',
+    backgroundColor: 'var(--color-bg-white)',
     borderRadius: '10px',
-    boxShadow: '0 2px 8px rgba(47, 164, 169, 0.1)',
+    boxShadow: 'var(--shadow-sm)',
   },
   profileImageContainer: {
     flexShrink: 0,
@@ -409,9 +418,10 @@ const styles = {
   },
   whatsappSection: {
     padding: '1.5rem',
-    backgroundColor: 'white',
+    backgroundColor: 'var(--color-bg-white)',
     borderRadius: '10px',
-    boxShadow: '0 2px 8px rgba(47, 164, 169, 0.1)',
+    boxShadow: 'var(--shadow-sm)',
+    marginBottom: '1.5rem',
   },
   whatsappHeader: {
     display: 'flex',
@@ -428,6 +438,45 @@ const styles = {
     fontSize: '0.95rem',
     color: 'var(--color-text-secondary)',
     fontStyle: 'italic',
+  },
+  themeSection: {
+    padding: '1.5rem',
+    backgroundColor: 'var(--color-bg-white)',
+    borderRadius: '10px',
+    boxShadow: 'var(--shadow-sm)',
+    marginBottom: '1.5rem',
+  },
+  themeHeader: {
+    marginBottom: '1rem',
+  },
+  themeLabel: {
+    fontSize: '1rem',
+    fontWeight: 600,
+    color: 'var(--color-text-primary-light)',
+  },
+  themeToggleContainer: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '1rem',
+  },
+  themeDescription: {
+    fontSize: '0.95rem',
+    color: 'var(--color-text-secondary)',
+    fontWeight: 500,
+  },
+  themeToggleButton: {
+    padding: '0.6rem 1.5rem',
+    background: 'var(--gradient-primary)',
+    color: 'var(--color-text-primary-dark)',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '0.9rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 4px rgba(47, 164, 169, 0.2)',
+    whiteSpace: 'nowrap' as const,
   },
   whatsappEditContainer: {
     display: 'flex',
@@ -486,9 +535,9 @@ const styles = {
   },
   supportSection: {
     padding: '1.5rem',
-    backgroundColor: 'white',
+    backgroundColor: 'var(--color-bg-white)',
     borderRadius: '10px',
-    boxShadow: '0 2px 8px rgba(47, 164, 169, 0.1)',
+    boxShadow: 'var(--shadow-sm)',
     marginTop: '1.5rem',
   },
   supportHeader: {
@@ -534,9 +583,9 @@ const styles = {
   },
   accountActionsSection: {
     padding: '1.5rem',
-    backgroundColor: 'white',
+    backgroundColor: 'var(--color-bg-white)',
     borderRadius: '10px',
-    boxShadow: '0 2px 8px rgba(47, 164, 169, 0.1)',
+    boxShadow: 'var(--shadow-sm)',
     marginTop: '1.5rem',
   },
   actionButtonsContainer: {

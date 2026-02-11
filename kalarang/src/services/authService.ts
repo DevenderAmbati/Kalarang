@@ -57,7 +57,14 @@ export async function getUserProfile(uid: string) {
     throw new Error("User profile not found");
   }
 
-  return snap.data();
+  const data = snap.data();
+  
+  // Convert Firestore timestamp to Date object
+  if (data.createdAt && typeof data.createdAt.toDate === 'function') {
+    data.createdAt = data.createdAt.toDate();
+  }
+  
+  return data;
 }
 
 const googleProvider = new GoogleAuthProvider();

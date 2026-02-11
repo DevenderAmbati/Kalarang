@@ -1,9 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 import ArtworkGrid from '../components/ArtworkGrid';
 import FilterPanel, { FilterState } from '../components/FilterPanel';
+import LoadingState from '../components/LoadingState';
+import EmptyState from '../components/EmptyState';
+import { getPublishedArtworks } from '../services/artworkService';
+import { Artwork as ArtworkType } from '../types/artwork';
+import laptopAnimation from '../animations/Laptop-Drawing 1.json';
+import noContentAnimation from '../animations/no content.json';
 import './Discover.css';
 
 const CATEGORIES = [
@@ -17,148 +24,35 @@ const CATEGORIES = [
   'Sculpture',
 ];
 
-// Mock data for demonstration
-const MOCK_ARTWORKS = [
-  {
-    id: '1',
-    title: 'Sunset Dreams',
-    artworkImage: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=800',
-    artistName: 'Priya Sharma',
-    artistAvatar: 'https://i.pravatar.cc/150?img=1',
-    price: 15000,
-  },
-  {
-    id: '2',
-    title: 'Urban Symphony',
-    artworkImage: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=800',
-    artistName: 'Rajesh Kumar',
-    artistAvatar: 'https://i.pravatar.cc/150?img=2',
-    price: 25000,
-  },
-  {
-    id: '3',
-    title: 'Nature\'s Canvas',
-    artworkImage: 'https://images.unsplash.com/photo-1547891654-e66ed7ebb968?w=800',
-    artistName: 'Ananya Desai',
-    artistAvatar: 'https://i.pravatar.cc/150?img=3',
-    price: 18000,
-  },
-  {
-    id: '4',
-    title: 'Abstract Thoughts',
-    artworkImage: 'https://images.unsplash.com/photo-1561214115-f2f134cc4912?w=800',
-    artistName: 'Vikram Singh',
-    artistAvatar: 'https://i.pravatar.cc/150?img=4',
-    price: 22000,
-  },
-  {
-    id: '5',
-    title: 'Ethereal Beauty',
-    artworkImage: 'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=800',
-    artistName: 'Meera Patel',
-    artistAvatar: 'https://i.pravatar.cc/150?img=5',
-    price: 30000,
-  },
-  {
-    id: '6',
-    title: 'Modern Minimalism',
-    artworkImage: 'https://images.unsplash.com/photo-1536924940846-227afb31e2a5?w=800',
-    artistName: 'Arjun Mehta',
-    artistAvatar: 'https://i.pravatar.cc/150?img=6',
-    price: 20000,
-  },
-  {
-    id: '7',
-    title: 'Golden Hour',
-    artworkImage: 'https://images.unsplash.com/photo-1506806732259-39c2d0268443?w=800',
-    artistName: 'Kavita Reddy',
-    artistAvatar: 'https://i.pravatar.cc/150?img=7',
-    price: 28000,
-  },
-  {
-    id: '8',
-    title: 'Ocean Whispers',
-    artworkImage: 'https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=800',
-    artistName: 'Aditya Joshi',
-    artistAvatar: 'https://i.pravatar.cc/150?img=8',
-    price: 19500,
-  },
-  {
-    id: '9',
-    title: 'Mountain Majesty',
-    artworkImage: 'https://images.unsplash.com/photo-1520208422220-d12a3c588e6c?w=800',
-    artistName: 'Sneha Gupta',
-    artistAvatar: 'https://i.pravatar.cc/150?img=9',
-    price: 32000,
-  },
-  {
-    id: '10',
-    title: 'City Lights',
-    artworkImage: 'https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=800',
-    artistName: 'Rohit Sharma',
-    artistAvatar: 'https://i.pravatar.cc/150?img=10',
-    price: 24000,
-  },
-  {
-    id: '11',
-    title: 'Floral Dreams',
-    artworkImage: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=800',
-    artistName: 'Deepa Nair',
-    artistAvatar: 'https://i.pravatar.cc/150?img=11',
-    price: 17000,
-  },
-  {
-    id: '12',
-    title: 'Cosmic Journey',
-    artworkImage: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=800',
-    artistName: 'Karan Malhotra',
-    artistAvatar: 'https://i.pravatar.cc/150?img=12',
-    price: 35000,
-  },
-  {
-    id: '13',
-    title: 'Serene Waters',
-    artworkImage: 'https://images.unsplash.com/photo-1582201942988-13e60e4556ee?w=800',
-    artistName: 'Nisha Kapoor',
-    artistAvatar: 'https://i.pravatar.cc/150?img=13',
-    price: 21000,
-  },
-  {
-    id: '14',
-    title: 'Desert Sunset',
-    artworkImage: 'https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?w=800',
-    artistName: 'Sameer Khan',
-    artistAvatar: 'https://i.pravatar.cc/150?img=14',
-    price: 26000,
-  },
-  {
-    id: '15',
-    title: 'Forest Mystique',
-    artworkImage: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800',
-    artistName: 'Isha Verma',
-    artistAvatar: 'https://i.pravatar.cc/150?img=15',
-    price: 23000,
-  },
-  {
-    id: '16',
-    title: 'Vintage Elegance',
-    artworkImage: 'https://images.unsplash.com/photo-1547891654-e66ed7ebb968?w=800',
-    artistName: 'Rahul Deshmukh',
-    artistAvatar: 'https://i.pravatar.cc/150?img=16',
-    price: 29000,
-  },
-];
-
 const Discover: React.FC = () => {
   const navigate = useNavigate();
+  const { appUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [artworks, setArtworks] = useState<ArtworkType[]>([]);
   const [filters, setFilters] = useState<FilterState>({
     mediums: [],
     priceRange: { min: 100, max: 200000 },
     sizes: [],
   });
+
+  useEffect(() => {
+    loadArtworks();
+  }, []);
+
+  const loadArtworks = async () => {
+    try {
+      setLoading(true);
+      const fetchedArtworks = await getPublishedArtworks(50);
+      setArtworks(fetchedArtworks);
+    } catch (error) {
+      console.error('Error loading artworks:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -252,7 +146,33 @@ const Discover: React.FC = () => {
 
         {/* Artwork Grid */}
         <div className="discover-content">
-          <ArtworkGrid artworks={MOCK_ARTWORKS} onArtworkClick={handleArtworkClick} />
+          {loading ? (
+            <LoadingState 
+              animation={laptopAnimation}
+              message="Discovering artworks..." 
+              fullHeight 
+            />
+          ) : artworks.length === 0 ? (
+            <EmptyState
+              animation={noContentAnimation}
+              title="No Artworks Found"
+              description="Check back later for amazing new artworks from talented artists."
+              actionLabel="Go to Home"
+              actionPath="/feed"
+            />
+          ) : (
+            <ArtworkGrid 
+              artworks={artworks.map(artwork => ({
+                id: artwork.id,
+                title: artwork.title,
+                artworkImage: artwork.images[0],
+                artistName: artwork.artistName,
+                artistAvatar: artwork.artistAvatar || '/artist.png',
+                price: artwork.price,
+              }))} 
+              onArtworkClick={handleArtworkClick} 
+            />
+          )}
         </div>
       </div>
     </Layout>

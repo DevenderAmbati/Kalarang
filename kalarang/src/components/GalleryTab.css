@@ -103,36 +103,107 @@
   opacity: 1;
 }
 
+/* Unpublished Badge */
+.gallery-unpublished-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: transparent;
+  backdrop-filter: blur(40px);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  z-index: 2;
+  pointer-events: none;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
 /* Empty State */
 .gallery-tab-empty {
   text-align: center;
-  padding: 4rem 2rem;
-  background: var(--primary-alpha-10);
-  border-radius: 12px;
-  border: 2px dashed var(--primary-alpha-20);
+  padding: 5rem 2rem;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  border-radius: 20px;
+  border: 2px dashed rgba(102, 126, 234, 0.3);
   margin: 2rem 0;
+  animation: fadeInScale 0.6s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.gallery-tab-empty::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+  animation: rotate 20s linear infinite;
+}
+
+.gallery-tab-empty-content {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .gallery-tab-empty-icon {
-  font-size: 3rem;
+  font-size: 5rem;
   display: block;
   margin-bottom: 1.5rem;
-  opacity: 0.7;
+  opacity: 0.6;
+  animation: float 3s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
 }
 
 .gallery-tab-empty-title {
-  font-size: 1.25rem;
+  font-size: 2rem;
   font-weight: 600;
-  color: var(--color-primary);
+  color: var(--color-accent);
   margin-bottom: 1rem;
+  position: relative;
+  z-index: 1;
+  line-height: 1.2;
 }
 
 .gallery-tab-empty-text {
-  font-size: 1rem;
-  color: var(--color-text-secondary);
-  line-height: 1.6;
-  max-width: 400px;
+  font-size: 1.1rem;
+  color: var(--color-primary);
+  line-height: 1.7;
+  max-width: 450px;
   margin: 0 auto;
+  position: relative;
+  z-index: 1;
+  font-weight: 400;
 }
 
 /* Animation Keyframes */

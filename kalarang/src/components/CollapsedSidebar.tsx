@@ -6,6 +6,7 @@ import { BiUpload } from 'react-icons/bi';
 import { BsBriefcaseFill, BsPersonCircle } from 'react-icons/bs';
 import { IconType } from 'react-icons';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import './CollapsedSidebar.css';
 
 /**
@@ -36,6 +37,7 @@ interface CollapsedSidebarProps {
 const CollapsedSidebar: React.FC<CollapsedSidebarProps> = ({ onExpand }) => {
   const location = useLocation();
   const { appUser } = useAuth();
+  const { theme } = useTheme();
   const [hoveredItem, setHoveredItem] = React.useState<string | null>(null);
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -161,9 +163,19 @@ const CollapsedSidebar: React.FC<CollapsedSidebarProps> = ({ onExpand }) => {
         />
         <defs>
           <linearGradient id="collapsedSidebarGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#0B1F2A" />
-            <stop offset="50%" stopColor="#142F3A" />
-            <stop offset="100%" stopColor="#1F7F8B" />
+            {theme === 'light' ? (
+              <>
+                <stop offset="0%" stopColor="#0B1F2A" />
+                <stop offset="50%" stopColor="#142F3A" />
+                <stop offset="100%" stopColor="#1F7F8B" />
+              </>
+            ) : (
+              <>
+                <stop offset="0%" stopColor="#0F172A" />
+                <stop offset="50%" stopColor="#1E293B" />
+                <stop offset="100%" stopColor="#334155" />
+              </>
+            )}
           </linearGradient>
         </defs>
       </svg>
