@@ -2,19 +2,26 @@ import React from 'react';
 
 interface ImagePreview {
   id: string;
-  file: File;
+  file?: File;
   url: string;
+  isExisting?: boolean;
 }
 
 interface ImagePreviewGridProps {
   images: ImagePreview[];
   onRemoveImage: (id: string) => void;
+  onDragStart?: (index: number) => void;
+  onDragOver?: (e: React.DragEvent, index: number) => void;
+  onDragEnd?: () => void;
   maxImages?: number;
 }
 
 const ImagePreviewGrid: React.FC<ImagePreviewGridProps> = ({
   images,
   onRemoveImage,
+  onDragStart,
+  onDragOver,
+  onDragEnd,
   maxImages = 6,
 }) => {
   // Create empty slots to fill the grid
@@ -31,15 +38,28 @@ const ImagePreviewGrid: React.FC<ImagePreviewGridProps> = ({
   return (
     <div className="image-preview-grid">
       {limitedItems.map((image, index) => (
-        <div key={image.id || `empty-${index}`} className="preview-item">
-          {image.file ? (
+        <div 
+          key={image.id || `empty-${index}`} 
+          className="preview-item"
+          draggable={!!image.url}
+          onDragStart={() => onDragStart && onDragStart(index)}
+          onDragOver={(e) => onDragOver && onDragOver(e, index)}
+          onDragEnd={onDragEnd}
+          style={{ 
+            cursor: image.url ? 'grab' : 'default',
+            opacity: image.url ? 1 : 1,
+          }}
+        >
+          {image.url ? (
             <>
               <img
                 src={image.url}
                 alt={`Preview ${index + 1}`}
                 className="preview-image"
+                style={{ pointerEvents: 'none' }}
               />
               <div className="preview-badge">{index + 1}</div>
+              
               <button
                 type="button"
                 className="preview-remove"

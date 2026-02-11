@@ -13,8 +13,9 @@ import './CreateArtwork.css';
 
 interface ImagePreview {
   id: string;
-  file: File;
+  file?: File;
   url: string;
+  isExisting?: boolean;
 }
 
 const CreateArtwork: React.FC = () => {
@@ -23,12 +24,14 @@ const CreateArtwork: React.FC = () => {
   const [searchParams] = useSearchParams();
   const editArtworkId = searchParams.get('edit');
   const [images, setImages] = useState<ImagePreview[]>([]);
-  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [savedArtworkId, setSavedArtworkId] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [currentTip, setCurrentTip] = useState('');
   const [isLoadingArtwork, setIsLoadingArtwork] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [formData, setFormData] = useState<ArtworkFormData>({
@@ -79,8 +82,13 @@ const CreateArtwork: React.FC = () => {
           isCommissioned: artwork.isCommissioned || false,
         });
 
-        // Set existing images
-        setExistingImageUrls(artwork.images || []);
+        // Set existing images as ImagePreview objects
+        const existingPreviews: ImagePreview[] = (artwork.images || []).map((url, index) => ({
+          id: `existing-${index}-${Date.now()}`,
+          url,
+          isExisting: true,
+        }));
+        setImages(existingPreviews);
         setSavedArtworkId(editArtworkId);
       } catch (error) {
         console.error('Error loading artwork:', error);
@@ -95,14 +103,15 @@ const CreateArtwork: React.FC = () => {
   }, [editArtworkId, appUser, navigate]);
 
   const createImagePreview = (file: File): ImagePreview => ({
-    id: `${Date.now()}-${Math.random()}`,
+    id: `new-${Date.now()}-${Math.random()}`,
     file,
     url: URL.createObjectURL(file),
+    isExisting: false,
   });
 
   const handleFileSelect = useCallback((files: File[]) => {
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
-    const totalCurrentImages = images.length + existingImageUrls.length;
+    const totalCurrentImages = images.length;
     const remainingSlots = maxImages - totalCurrentImages;
     const filesToAdd = imageFiles.slice(0, remainingSlots);
     
@@ -113,22 +122,18 @@ const CreateArtwork: React.FC = () => {
     if (editArtworkId) {
       setHasUnsavedChanges(true);
     }
-  }, [images.length, existingImageUrls.length, maxImages, editArtworkId]);
+  }, [images.length, maxImages, editArtworkId]);
 
   const handleRemoveImage = useCallback((id: string) => {
     setImages(prev => {
       const updated = prev.filter(img => img.id !== id);
-      // Clean up URL
+      // Clean up URL for new images only
       const removedImage = prev.find(img => img.id === id);
-      if (removedImage) {
+      if (removedImage && !removedImage.isExisting && removedImage.file) {
         URL.revokeObjectURL(removedImage.url);
       }
       return updated;
     });
-  }, []);
-
-  const handleRemoveExistingImage = useCallback((url: string) => {
-    setExistingImageUrls(prev => prev.filter(imgUrl => imgUrl !== url));
     // Mark as having unsaved changes when editing
     if (editArtworkId) {
       setHasUnsavedChanges(true);
@@ -136,11 +141,11 @@ const CreateArtwork: React.FC = () => {
   }, [editArtworkId]);
 
   const handleDragEnter = useCallback(() => {
-    const totalCurrentImages = images.length + existingImageUrls.length;
+    const totalCurrentImages = images.length;
     if (totalCurrentImages < maxImages) {
       setIsDragActive(true);
     }
-  }, [images.length, existingImageUrls.length, maxImages]);
+  }, [images.length, maxImages]);
 
   const handleDragLeave = useCallback(() => {
     setIsDragActive(false);
@@ -161,14 +166,40 @@ const CreateArtwork: React.FC = () => {
     }
   }, [editArtworkId]);
 
+  const handleDragStart = useCallback((index: number) => {
+    setDraggedIndex(index);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    setImages(prev => {
+      const newImages = [...prev];
+      const draggedItem = newImages[draggedIndex];
+      newImages.splice(draggedIndex, 1);
+      newImages.splice(index, 0, draggedItem);
+      return newImages;
+    });
+    setDraggedIndex(index);
+  }, [draggedIndex]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedIndex(null);
+    // Mark as having unsaved changes when editing
+    if (editArtworkId) {
+      setHasUnsavedChanges(true);
+    }
+  }, [editArtworkId]);
+
   const handleSaveToGallery = async () => {
     if (!appUser) {
       toast.error('You must be logged in to save artwork');
       return;
     }
 
-    // For updates, we can allow saving without new images if existing images exist
-    if (images.length === 0 && existingImageUrls.length === 0) {
+    // Check if there's at least one image
+    if (images.length === 0) {
       toast.error('Please add at least one image');
       return;
     }
@@ -180,8 +211,21 @@ const CreateArtwork: React.FC = () => {
 
     setIsSaving(true);
     setUploadProgress(0);
+    setUploadStatus('Preparing your artwork...');
 
-    let progressInterval: NodeJS.Timeout | null = null;
+    // Engaging tips to show during upload
+    const tips = [
+      "🎨 Pro tip: Add detailed descriptions to help buyers connect with your art",
+      "✨ Your artwork is being optimized for the best viewing experience",
+      "🌟 Great art takes time - we're making sure every pixel is perfect!",
+      "💫 We're securely storing your artwork in the cloud",
+      "🔥 Tip: Published artworks appear in the Discover feed instantly",
+      "🚀 Sit tight, your masterpiece is almost ready to shine!",
+      "🎉 Once it is saved, publish it to share with the world!"
+    ];
+
+    let tipInterval: NodeJS.Timeout | null = null;
+    let currentTipIndex = 0;
 
     try {
       const artworkUpload = {
@@ -196,30 +240,52 @@ const CreateArtwork: React.FC = () => {
         createdDate: formData.createdDate,
       };
 
-      progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 90) {
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 200);
+      // Show rotating tips every 3 seconds
+      setCurrentTip(tips[0]);
+      tipInterval = setInterval(() => {
+        currentTipIndex = (currentTipIndex + 1) % tips.length;
+        setCurrentTip(tips[currentTipIndex]);
+      }, 3000);
 
       let artworkId: string;
 
       if (editArtworkId && savedArtworkId) {
         // Update existing artwork
         console.log('Updating existing artwork:', editArtworkId);
+        setUploadStatus('Updating artwork...');
         
-        // Upload new images if any
+        // Separate existing and new images
+        const existingImages = images.filter(img => img.isExisting);
+        const newImages = images.filter(img => !img.isExisting && img.file);
+        
+        setUploadProgress(10);
+        
+        // Upload new images in parallel for better performance
         let newImageUrls: string[] = [];
-        if (images.length > 0) {
-          const imageFiles = images.map(img => img.file);
-          newImageUrls = await uploadArtworkImages(appUser.uid, imageFiles);
+        if (newImages.length > 0) {
+          setUploadStatus(`Uploading ${newImages.length} new image${newImages.length > 1 ? 's' : ''}...`);
+          const newImageFiles = newImages.map(img => img.file!);
+          newImageUrls = await uploadArtworkImages(appUser.uid, newImageFiles);
+          setUploadProgress(60);
+        } else {
+          setUploadProgress(60);
         }
 
-        // Combine existing and new image URLs
-        const allImageUrls = [...existingImageUrls, ...newImageUrls];
+        // Reconstruct images array maintaining the order
+        const allImageUrls: string[] = [];
+        let newImageIndex = 0;
+        
+        for (const img of images) {
+          if (img.isExisting) {
+            allImageUrls.push(img.url);
+          } else {
+            allImageUrls.push(newImageUrls[newImageIndex]);
+            newImageIndex++;
+          }
+        }
+
+        setUploadStatus('Saving changes...');
+        setUploadProgress(80);
 
         await updateArtwork(editArtworkId, {
           ...artworkUpload,
@@ -231,7 +297,10 @@ const CreateArtwork: React.FC = () => {
       } else {
         // Create new artwork
         console.log('Creating new artwork...');
-        const imageFiles = images.map(img => img.file);
+        const imageFiles = images.filter(img => img.file).map(img => img.file!);
+        
+        setUploadStatus(`Uploading ${imageFiles.length} image${imageFiles.length > 1 ? 's' : ''}...`);
+        setUploadProgress(20);
         
         artworkId = await createArtwork(
           appUser.uid,
@@ -241,13 +310,15 @@ const CreateArtwork: React.FC = () => {
           imageFiles
         );
 
+        setUploadProgress(80);
         console.log('Artwork created successfully:', artworkId);
       }
       
-      if (progressInterval) {
-        clearInterval(progressInterval);
+      if (tipInterval) {
+        clearInterval(tipInterval);
       }
       
+      setUploadStatus('Finalizing...');
       setUploadProgress(100);
 
       // Small delay to show 100%
@@ -263,17 +334,19 @@ const CreateArtwork: React.FC = () => {
       
     } catch (error: any) {
       console.error('Error saving artwork:', error);
-      if (progressInterval) {
-        clearInterval(progressInterval);
+      if (tipInterval) {
+        clearInterval(tipInterval);
       }
       toast.error(error.message || 'Failed to save artwork. Please try again.');
     } finally {
-      if (progressInterval) {
-        clearInterval(progressInterval);
+      if (tipInterval) {
+        clearInterval(tipInterval);
       }
       setIsSaving(false);
       setTimeout(() => {
         setUploadProgress(0);
+        setUploadStatus('');
+        setCurrentTip('');
       }, 1000);
     }
   };
@@ -331,7 +404,7 @@ const CreateArtwork: React.FC = () => {
     formData.width && 
     formData.height && 
     formData.price && 
-    (images.length > 0 || existingImageUrls.length > 0);
+    images.length > 0;
 
   return (
     <>
@@ -375,14 +448,15 @@ const CreateArtwork: React.FC = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(11, 31, 42, 0.95)',
+          background: 'rgba(11, 31, 42, 0.98)',
+          backdropFilter: 'blur(10px)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 9999,
         }}>
-          <div style={{ width: '250px', maxWidth: '90%', marginBottom: '2rem' }}>
+          <div style={{ width: '280px', maxWidth: '90%', marginBottom: '2rem' }}>
             <Lottie 
               animationData={artAnimation} 
               loop={true}
@@ -391,33 +465,72 @@ const CreateArtwork: React.FC = () => {
           </div>
           <p style={{ 
             color: 'var(--color-accent)', 
-            fontSize: '1.25rem', 
-            fontWeight: 600,
-            marginBottom: '0.5rem'
+            fontSize: '1.5rem', 
+            fontWeight: 700,
+            marginBottom: '0.5rem',
+            textAlign: 'center',
           }}>
-            Saving to Gallery...
+            {uploadStatus || 'Saving to Gallery...'}
           </p>
-          <p style={{ color: 'var(--color-primary)', fontSize: '1rem' }}>
+          <p style={{ 
+            color: 'var(--color-primary)', 
+            fontSize: '1.2rem',
+            fontWeight: 600,
+            marginBottom: '1.5rem',
+          }}>
             {uploadProgress}% Complete
           </p>
           <div style={{
-            width: '300px',
+            width: '350px',
             maxWidth: '90%',
-            height: '8px',
+            height: '10px',
             background: 'rgba(255, 255, 255, 0.1)',
-            borderRadius: '4px',
+            borderRadius: '10px',
             overflow: 'hidden',
-            marginTop: '1rem',
+            marginBottom: '2rem',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
           }}>
             <div style={{
               width: `${uploadProgress}%`,
               height: '100%',
-              background: 'linear-gradient(90deg, var(--color-primary), var(--color-accent))',
-              transition: 'width 0.3s ease',
+              background: 'linear-gradient(90deg, #2FA4A9, #5FD1D8, #2FA4A9)',
+              backgroundSize: '200% 100%',
+              animation: 'shimmer 2s infinite',
+              transition: 'width 0.4s ease-out',
+              boxShadow: '0 0 20px rgba(95, 209, 216, 0.6)',
             }} />
           </div>
+          {currentTip && (
+            <div style={{
+              maxWidth: '400px',
+              width: '90%',
+              padding: '1.25rem',
+              animation: 'fadeIn 0.5s ease-in',
+            }}>
+              <p style={{ 
+                color: '#5FD1D8',
+                fontSize: '1rem',
+                lineHeight: '1.6',
+                textAlign: 'center',
+                margin: 0,
+                fontWeight: 500,
+              }}>
+                {currentTip}
+              </p>
+            </div>
+          )}
         </div>
       )}
+      <style>{`
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
 
       {/* Full Screen Loader for Publishing */}
       {isPublishing && (
@@ -479,78 +592,21 @@ const CreateArtwork: React.FC = () => {
                   fontSize: '1rem',
                   fontWeight: 600,
                   color: 'var(--color-royal)',
-                  marginBottom: '1rem',
+                  marginBottom: '0.5rem',
                 }}>
-                  Preview ({existingImageUrls.length + images.length}/{maxImages})
+                  Preview ({images.length}/{maxImages})
                 </h4>
-                {/* Show existing images */}
-                {existingImageUrls.length > 0 && (
-                  <div style={{ marginBottom: '1rem' }}>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--color-primary)', marginBottom: '0.5rem' }}>
-                      Existing Images
-                    </p>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      {existingImageUrls.map((url, index) => (
-                        <div key={url} style={{ position: 'relative', width: '100px', height: '100px' }}>
-                          <img 
-                            src={url} 
-                            alt={`Existing ${index + 1}`}
-                            style={{ 
-                              width: '100%', 
-                              height: '100%', 
-                              objectFit: 'cover', 
-                              borderRadius: '8px' 
-                            }}
-                          />
-                          <button
-                            onClick={() => handleRemoveExistingImage(url)}
-                            style={{
-                              position: 'absolute',
-                              top: '4px',
-                              right: '4px',
-                              background: 'rgba(255, 255, 255, 0.9)',
-                              border: 'none',
-                              borderRadius: '50%',
-                              width: '24px',
-                              height: '24px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '14px',
-                              color: '#e74c3c',
-                            }}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {/* Show new images grid - always show when no existing images */}
-                {existingImageUrls.length === 0 && (
-                  <ImagePreviewGrid
-                    images={images}
-                    onRemoveImage={handleRemoveImage}
-                    maxImages={maxImages}
-                  />
-                )}
-                {/* Show new images when there are existing images */}
-                {existingImageUrls.length > 0 && (
-                  <div>
-                    {images.length > 0 && (
-                      <p style={{ fontSize: '0.9rem', color: 'var(--color-primary)', marginBottom: '0.5rem' }}>
-                        New Images
-                      </p>
-                    )}
-                    <ImagePreviewGrid
-                      images={images}
-                      onRemoveImage={handleRemoveImage}
-                      maxImages={maxImages - existingImageUrls.length}
-                    />
-                  </div>
-                )}
+                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '1rem', fontStyle: 'italic' }}>
+                  Drag images to rearrange their order
+                </p>
+                <ImagePreviewGrid
+                  images={images}
+                  onRemoveImage={handleRemoveImage}
+                  onDragStart={handleDragStart}
+                  onDragOver={handleDragOver}
+                  onDragEnd={handleDragEnd}
+                  maxImages={maxImages}
+                />
               </div>
             </div>
           </div>
@@ -561,26 +617,24 @@ const CreateArtwork: React.FC = () => {
             onFormDataChange={handleFormDataChange}
           />
 
-          {savedArtworkId && (
-            <div style={{
-              margin: '1rem 0',
-              padding: '1rem',
-              background: 'linear-gradient(135deg, rgba(47, 164, 169, 0.1), rgba(95, 209, 216, 0.1))',
-              borderRadius: '8px',
-              border: '1px solid var(--color-primary)',
+          {/* Info Message */}
+          <div style={{
+            margin: '0.5rem 0',
+            marginTop: '0rem',
+            padding: '1rem 1.25rem',
+            background: 'linear-gradient(135deg, rgba(95, 209, 216, 0.08), rgba(47, 164, 169, 0.08))',
+            borderLeft: '4px solid var(--color-primary)',
+            borderRadius: '8px',
+          }}>
+            <p style={{ 
+              color: 'var(--color-text-secondary)', 
+              fontSize: '0.95rem',
+              lineHeight: '1.6',
+              margin: 0,
             }}>
-              <p style={{ 
-                color: 'var(--color-primary)', 
-                fontWeight: 600,
-                marginBottom: '0.5rem'
-              }}>
-                ✓ Saved to Gallery
-              </p>
-              <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
-                Your artwork is saved. Click "Publish to Feature" to make it visible in Discover.
-              </p>
-            </div>
-          )}
+              <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>💡 Tip:</span> Feels like your artwork is incomplete? Save to gallery now and publish it later from your Gallery tab. Your work is safely stored and you can update it anytime!
+            </p>
+          </div>
 
           {/* Action Buttons */}
           <div className="button-group">
@@ -590,7 +644,7 @@ const CreateArtwork: React.FC = () => {
                 type="button"
                 className="button button-outline-green"
                 onClick={handleSaveToGallery}
-                disabled={isSaving || isPublishing || (images.length === 0 && existingImageUrls.length === 0) || !formData.title.trim()}
+                disabled={isSaving || isPublishing || images.length === 0 || !formData.title.trim()}
               >
                 {isSaving ? 'Saving...' : (editArtworkId ? 'Update Artwork' : 'Save to gallery')}
               </button>
