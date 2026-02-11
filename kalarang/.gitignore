@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+kalarang/node_modules/
+kalarang/functions/node_modules/
 /.pnp
 .pnp.js
 
