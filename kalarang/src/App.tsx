@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Lottie from 'lottie-react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import './toastStyles.css';
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import About from "./pages/About";
@@ -86,7 +87,17 @@ function App() {
       <ThemeProvider>
         <Router>
           <SidebarProvider>
-            <ToastContainer />
+            <ToastContainer 
+              position="top-right"
+              autoClose={4000}
+              hideProgressBar={false}
+              newestOnTop={true}
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+            />
             <Routes>
 
               {/* Public routes */}

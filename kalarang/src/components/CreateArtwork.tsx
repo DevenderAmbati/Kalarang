@@ -33,7 +33,7 @@ const CreateArtwork: React.FC = () => {
   const [uploadStatus, setUploadStatus] = useState('');
   const [currentTip, setCurrentTip] = useState('');
   const [isLoadingArtwork, setIsLoadingArtwork] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(true); // Start with true for new artworks
   const [formData, setFormData] = useState<ArtworkFormData>({
     title: '',
     description: '',
@@ -118,11 +118,11 @@ const CreateArtwork: React.FC = () => {
     const newPreviews = filesToAdd.map(createImagePreview);
     setImages(prev => [...prev, ...newPreviews]);
     setIsDragActive(false);
-    // Mark as having unsaved changes when editing
-    if (editArtworkId) {
+    // Mark as having unsaved changes when editing or after initial save
+    if (editArtworkId || savedArtworkId) {
       setHasUnsavedChanges(true);
     }
-  }, [images.length, maxImages, editArtworkId]);
+  }, [images.length, maxImages, editArtworkId, savedArtworkId]);
 
   const handleRemoveImage = useCallback((id: string) => {
     setImages(prev => {
@@ -134,11 +134,11 @@ const CreateArtwork: React.FC = () => {
       }
       return updated;
     });
-    // Mark as having unsaved changes when editing
-    if (editArtworkId) {
+    // Mark as having unsaved changes when editing or after initial save
+    if (editArtworkId || savedArtworkId) {
       setHasUnsavedChanges(true);
     }
-  }, [editArtworkId]);
+  }, [editArtworkId, savedArtworkId]);
 
   const handleDragEnter = useCallback(() => {
     const totalCurrentImages = images.length;
@@ -160,11 +160,11 @@ const CreateArtwork: React.FC = () => {
       ...prev,
       [field]: field === 'isCommissioned' ? value === 'true' : value,
     }));
-    // Mark as having unsaved changes when editing
-    if (editArtworkId) {
+    // Mark as having unsaved changes when editing or after initial save
+    if (editArtworkId || savedArtworkId) {
       setHasUnsavedChanges(true);
     }
-  }, [editArtworkId]);
+  }, [editArtworkId, savedArtworkId]);
 
   const handleDragStart = useCallback((index: number) => {
     setDraggedIndex(index);
@@ -186,11 +186,11 @@ const CreateArtwork: React.FC = () => {
 
   const handleDragEnd = useCallback(() => {
     setDraggedIndex(null);
-    // Mark as having unsaved changes when editing
-    if (editArtworkId) {
+    // Mark as having unsaved changes when editing or after initial save
+    if (editArtworkId || savedArtworkId) {
       setHasUnsavedChanges(true);
     }
-  }, [editArtworkId]);
+  }, [editArtworkId, savedArtworkId]);
 
   const handleSaveToGallery = async () => {
     if (!appUser) {
@@ -249,14 +249,18 @@ const CreateArtwork: React.FC = () => {
 
       let artworkId: string;
 
-      if (editArtworkId && savedArtworkId) {
-        // Update existing artwork
-        console.log('Updating existing artwork:', editArtworkId);
+      if (savedArtworkId) {
+        // Update existing artwork (works for both edit mode and after initial save)
+        console.log('Updating existing artwork:', savedArtworkId);
+        console.log('Images state:', images.map(img => ({ id: img.id, isExisting: img.isExisting, hasFile: !!img.file })));
         setUploadStatus('Updating artwork...');
         
         // Separate existing and new images
         const existingImages = images.filter(img => img.isExisting);
         const newImages = images.filter(img => !img.isExisting && img.file);
+        
+        console.log('Existing images count:', existingImages.length);
+        console.log('New images count:', newImages.length);
         
         setUploadProgress(10);
         
@@ -285,15 +289,25 @@ const CreateArtwork: React.FC = () => {
         }
 
         setUploadStatus('Saving changes...');
-        setUploadProgress(80);
+        setUploadProgress(70);
 
-        await updateArtwork(editArtworkId, {
+        await updateArtwork(savedArtworkId, {
           ...artworkUpload,
           images: allImageUrls,
         } as any);
 
-        artworkId = editArtworkId;
+        artworkId = savedArtworkId;
         console.log('Artwork updated successfully:', artworkId);
+        
+        // Convert all images to existing after update to prevent re-upload
+        setUploadStatus('Finalizing...');
+        const existingImagePreviews: ImagePreview[] = allImageUrls.map((url, index) => ({
+          id: `existing-${index}-${Date.now()}`,
+          url,
+          isExisting: true,
+        }));
+        setImages(existingImagePreviews);
+        setUploadProgress(80);
       } else {
         // Create new artwork
         console.log('Creating new artwork...');
@@ -310,27 +324,39 @@ const CreateArtwork: React.FC = () => {
           imageFiles
         );
 
-        setUploadProgress(80);
+        setUploadProgress(60);
         console.log('Artwork created successfully:', artworkId);
+        
+        // Fetch the created artwork to get the uploaded image URLs
+        setUploadStatus('Finalizing...');
+        const createdArtwork = await getArtwork(artworkId);
+        
+        if (createdArtwork && createdArtwork.images) {
+          // Convert images to existing images with server URLs to prevent re-upload on next update
+          const existingImagePreviews: ImagePreview[] = createdArtwork.images.map((url, index) => ({
+            id: `existing-${index}-${Date.now()}`,
+            url,
+            isExisting: true,
+          }));
+          setImages(existingImagePreviews);
+        }
+        setUploadProgress(80);
       }
       
       if (tipInterval) {
         clearInterval(tipInterval);
       }
       
-      setUploadStatus('Finalizing...');
       setUploadProgress(100);
 
       // Small delay to show 100%
       await new Promise(resolve => setTimeout(resolve, 500));
 
       setSavedArtworkId(artworkId);
-      toast.success(editArtworkId ? 'Artwork updated successfully!' : 'Artwork saved to gallery! You can now publish it to feature.');
+      toast.success(savedArtworkId ? 'Artwork updated successfully!' : 'Artwork saved to gallery! You can now publish it to feature.');
       
       // Clear unsaved changes flag after successful save
-      if (editArtworkId) {
-        setHasUnsavedChanges(false);
-      }
+      setHasUnsavedChanges(false);
       
     } catch (error: any) {
       console.error('Error saving artwork:', error);
@@ -638,15 +664,15 @@ const CreateArtwork: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="button-group">
-            {/* Only show save/update button if not yet saved or if editing with unsaved changes */}
-            {(!savedArtworkId || (!!editArtworkId && hasUnsavedChanges)) && (
+            {/* Show save/update button when there are unsaved changes */}
+            {hasUnsavedChanges && (
               <button
                 type="button"
                 className="button button-outline-green"
                 onClick={handleSaveToGallery}
                 disabled={isSaving || isPublishing || images.length === 0 || !formData.title.trim()}
               >
-                {isSaving ? 'Saving...' : (editArtworkId ? 'Update Artwork' : 'Save to gallery')}
+                {isSaving ? 'Saving...' : (savedArtworkId ? 'Update Artwork' : 'Save to gallery')}
               </button>
             )}
             
@@ -655,8 +681,8 @@ const CreateArtwork: React.FC = () => {
                 type="button"
                 className="button button-primary"
                 onClick={handlePublish}
-                disabled={isPublishing || isSaving || !savedArtworkId || !isFormValid || (!!editArtworkId && hasUnsavedChanges)}
-                style={(!savedArtworkId || !isFormValid || (!!editArtworkId && hasUnsavedChanges)) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                disabled={isPublishing || isSaving || !savedArtworkId || !isFormValid || hasUnsavedChanges}
+                style={(!savedArtworkId || !isFormValid || hasUnsavedChanges) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
               >
                 {isPublishing ? 'Publishing...' : 'Publish to feature'}
               </button>
