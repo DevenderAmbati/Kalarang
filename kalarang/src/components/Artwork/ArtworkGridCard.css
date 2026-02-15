@@ -1,0 +1,362 @@
+/* Card Container */
+.artwork-grid-card {
+  background: linear-gradient(135deg, #E8F4F5 0%, #D0EAEC 100%);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-smooth);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid rgba(47, 164, 169, 0.2);
+  position: relative;
+}
+
+.artwork-grid-card:hover {
+  transform: scale(1.02);
+  box-shadow: var(--shadow-lg);
+  z-index: 1;
+}
+
+/* Prevent hover transform when menu is open */
+.artwork-grid-card.menu-open {
+  z-index: 100;
+}
+
+.artwork-grid-card.menu-open:hover {
+  transform: none;
+}
+
+/* Image Section */
+.artwork-grid-card-image-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 12px 12px 0 0;
+}
+
+.artwork-grid-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform var(--transition-smooth);
+}
+
+.artwork-grid-card:hover .artwork-grid-card-image {
+  transform: scale(1.05);
+}
+
+/* Title Overlay */
+.artwork-grid-card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+ 
+  padding: 6px 6px 6px;
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  transition: all var(--transition-smooth);
+}
+
+
+
+/* Heart Icon Overlay */
+.artwork-grid-card-heart {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  color: var(--color-bg-white);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  box-shadow: var(--shadow-sm);
+}
+
+.artwork-grid-card-heart:hover {
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--color-accent);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
+}
+
+.artwork-grid-card-heart.liked {
+  color: var(--color-primary);
+}
+
+.artwork-grid-card-heart svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Sold Badge */
+.artwork-sold-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(220, 38, 38, 0.75);
+  color: var(--color-bg-white);
+  padding: 3px 8px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border-radius: 3px;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.3);
+  z-index: 10;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Content Section */
+.artwork-grid-card-content {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  border-radius: 0 0 12px 12px;
+  overflow: visible;
+  position: relative;
+}
+
+/* Title */
+.artwork-grid-card-title {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-bg-white);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+  text-shadow: 0 2px 8px rgba(11, 31, 42, 0.5);
+  transition: all var(--transition-base);
+}
+
+
+
+/* Artist Section */
+.artwork-grid-card-artist {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.artwork-grid-card-price-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.artwork-grid-card-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid var(--color-border-light);
+}
+
+.artwork-grid-card-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.artwork-grid-card-artist-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-royal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+/* Price Badge */
+.artwork-grid-card-price {
+  background: var(--color-primary);
+  color: var(--color-text-primary-dark);
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+  flex-shrink: 0;
+  transition: background-color var(--transition-base);
+}
+
+/* Menu Wrapper */
+.artwork-grid-card-menu-wrapper {
+  position: relative;
+  z-index: 1001;
+}
+
+/* Menu Button */
+.artwork-grid-card-menu-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-royal);
+  transition: all var(--transition-base);
+  border-radius: 50%;
+}
+
+.artwork-grid-card-menu-button:hover {
+  background: rgba(47, 164, 169, 0.1);
+  color: var(--color-primary);
+  transform: scale(1.1);
+}
+
+/* Dropdown Menu */
+.artwork-grid-card-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--color-bg-white);
+  border: 1px solid rgba(47, 164, 169, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(47, 164, 169, 0.1);
+  z-index: 1002;
+  min-width: 160px;
+  overflow: hidden;
+  animation: dropdownFadeIn 0.2s ease-out;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dropdown Items */
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-royal);
+  text-align: left;
+  transition: all var(--transition-base);
+}
+
+.dropdown-item:hover {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.dropdown-item svg {
+  flex-shrink: 0;
+}
+
+.dropdown-item:not(:last-child) {
+  border-bottom: 1px solid rgba(47, 164, 169, 0.1);
+}
+
+/* Tablet Styles */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .artwork-grid-card-content {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .artwork-grid-card-title {
+    font-size: 0.8rem;
+  }
+
+  .artwork-grid-card-avatar {
+    width: 22px;
+    height: 22px;
+  }
+
+  .artwork-grid-card-artist-name {
+    font-size: 0.85rem;
+  }
+
+  .artwork-grid-card-price {
+    font-size: 0.85rem;
+    padding: 7px 14px;
+  }
+
+  .artwork-grid-card-heart {
+    width: 36px;
+    height: 36px;
+    top: 10px;
+    right: 10px;
+  }
+
+  .artwork-grid-card-heart svg {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+/* Mobile Styles */
+@media (max-width: 639px) {
+  .artwork-grid-card-content {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .artwork-grid-card-title {
+    font-size: 0.8rem;
+  }
+
+  .artwork-grid-card-avatar {
+    width: 20px;
+    height: 20px;
+  }
+
+  .artwork-grid-card-artist-name {
+    font-size: 0.7rem;
+  }
+
+  .artwork-grid-card-price {
+    font-size: 0.65rem;
+    padding: 4px 8px;
+  }
+
+  .artwork-grid-card-heart {
+    width: 34px;
+    height: 34px;
+    top: 8px;
+    right: 8px;
+  }
+
+  .artwork-grid-card-heart svg {
+    width: 20px;
+    height: 20px;
+  }
+}

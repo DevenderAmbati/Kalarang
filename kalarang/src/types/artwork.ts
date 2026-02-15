@@ -13,6 +13,7 @@ export interface Artwork {
   price: number;
   isCommissioned: boolean;
   published: boolean;
+  sold?: boolean;
   createdDate?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -29,5 +30,6 @@ export interface ArtworkUpload {
   height?: string;
   price: number;
   isCommissioned: boolean;
+  sold?: boolean;
   createdDate?: string;
 }
