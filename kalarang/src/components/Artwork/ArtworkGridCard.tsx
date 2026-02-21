@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './ArtworkGridCard.css';
 import { Artwork } from './ArtworkGrid';
+import LazyImage from '../Common/LazyImage';
 
 export interface ArtworkGridCardProps {
   artwork: Artwork;
@@ -11,6 +12,9 @@ export interface ArtworkGridCardProps {
   onMarkAsSold?: (id: string) => void;
   onSave?: (id: string) => void;
   isSaved?: boolean;
+  onAddToStory?: (id: string) => void;
+  hasStory?: boolean;
+  currentUserId?: string;
 }
 
 const ArtworkGridCard: React.FC<ArtworkGridCardProps> = ({ 
@@ -21,24 +25,63 @@ const ArtworkGridCard: React.FC<ArtworkGridCardProps> = ({
   onDelete,
   onMarkAsSold,
   onSave,
-  isSaved = false
+  isSaved = false,
+  onAddToStory,
+  hasStory = false,
+  currentUserId
 }) => {
   const [saved, setSaved] = useState(isSaved);
   const [showMenu, setShowMenu] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [dropdownDirection, setDropdownDirection] = useState<'down' | 'up'>('down');
   const menuRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Sync internal state with prop changes (e.g., when favorites change from other pages)
+  useEffect(() => {
+    setSaved(isSaved);
+  }, [isSaved]);
 
   const handleCardClick = () => {
     onArtworkClick(artwork.id);
   };
 
+  const handleArtistClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (artwork.artistId) {
+      const isOwnProfile = artwork.artistId === currentUserId;
+      window.location.href = isOwnProfile ? '/portfolio' : `/portfolio/${artwork.artistId}`;
+    }
+  };
+
   const handleSaveClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setIsAnimating(true);
     setSaved(!saved);
     if (onSave) onSave(artwork.id);
+    
+    // Reset animation state after animation completes
+    setTimeout(() => setIsAnimating(false), 500);
   };
 
   const handleMenuClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // Determine if we should show dropdown upwards or downwards
+    if (cardRef.current) {
+      const rect = cardRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const spaceBelow = viewportHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      // If less than 200px space below and more space above, show upwards
+      if (spaceBelow < 200 && spaceAbove > spaceBelow) {
+        setDropdownDirection('up');
+      } else {
+        setDropdownDirection('down');
+      }
+    }
+    
     setShowMenu(!showMenu);
   };
 
@@ -58,6 +101,12 @@ const ArtworkGridCard: React.FC<ArtworkGridCardProps> = ({
     e.stopPropagation();
     setShowMenu(false);
     if (onMarkAsSold) onMarkAsSold(artwork.id);
+  };
+
+  const handleAddToStory = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    if (onAddToStory) onAddToStory(artwork.id);
   };
 
   // Close menu when clicking outside
@@ -82,9 +131,13 @@ const ArtworkGridCard: React.FC<ArtworkGridCardProps> = ({
   };
 
   return (
-    <div className={`artwork-grid-card ${showMenu ? 'menu-open' : ''}`} onClick={handleCardClick}>
+    <div className={`artwork-grid-card ${showMenu ? 'menu-open' : ''}`} onClick={handleCardClick} ref={cardRef}>
       <div className="artwork-grid-card-image-container">
-        <img src={artwork.artworkImage} alt={artwork.title} className="artwork-grid-card-image" />
+        <LazyImage 
+          src={artwork.artworkImage} 
+          alt={artwork.title} 
+          className="artwork-grid-card-image" 
+        />
         
         <div className="artwork-grid-card-overlay">
           <h3 className="artwork-grid-card-title">{artwork.title}</h3>
@@ -97,7 +150,7 @@ const ArtworkGridCard: React.FC<ArtworkGridCardProps> = ({
         )}
         
         <button
-          className={`artwork-grid-card-heart ${saved ? 'liked' : ''}`}
+          className={`artwork-grid-card-heart ${saved ? 'liked' : ''} ${isAnimating ? 'animating' : ''}`}
           onClick={handleSaveClick}
           aria-label="Save to favorites"
         >
@@ -110,9 +163,15 @@ const ArtworkGridCard: React.FC<ArtworkGridCardProps> = ({
       <div className="artwork-grid-card-content">
         <div className="artwork-grid-card-artist">
           <div className="artwork-grid-card-avatar">
-            <img src={artwork.artistAvatar} alt={artwork.artistName} />
+            <LazyImage src={artwork.artistAvatar} alt={artwork.artistName} />
           </div>
-          <span className="artwork-grid-card-artist-name">{artwork.artistName}</span>
+          <span 
+            className="artwork-grid-card-artist-name"
+            onClick={handleArtistClick}
+            style={{ cursor: artwork.artistId ? 'pointer' : 'default' }}
+          >
+            {artwork.artistName}
+          </span>
           <div className="artwork-grid-card-price-container">
             <div className="artwork-grid-card-price">
               {formatPrice(artwork.price)}
@@ -131,7 +190,7 @@ const ArtworkGridCard: React.FC<ArtworkGridCardProps> = ({
                   </svg>
                 </button>
                 {showMenu && (
-                  <div className="artwork-grid-card-dropdown">
+                  <div className={`artwork-grid-card-dropdown ${dropdownDirection === 'up' ? 'dropdown-up' : ''}`}>
                     <button className="dropdown-item" onClick={handleEdit}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -151,8 +210,18 @@ const ArtworkGridCard: React.FC<ArtworkGridCardProps> = ({
                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                         <polyline points="22 4 12 14.01 9 11.01" />
                       </svg>
-                      Mark as Sold
+                      {artwork.sold ? 'Remove Sold' : 'Mark as Sold'}
                     </button>
+                    {!hasStory && onAddToStory && (
+                      <button className="dropdown-item" onClick={handleAddToStory}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" y1="8" x2="12" y2="16" />
+                          <line x1="8" y1="12" x2="16" y2="12" />
+                        </svg>
+                        Add to Story
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

@@ -3,6 +3,26 @@
   grid-template-columns: repeat(4, 1fr);
   gap: 24px;
   width: 100%;
+  /* Performance optimizations */
+  contain: layout style;
+  content-visibility: auto;
+}
+
+/* Virtualized grid container */
+.artwork-grid-virtualized {
+  width: 100%;
+  height: 100%;
+  contain: layout style paint;
+}
+
+.artwork-virtual-grid {
+  /* Remove default outline */
+  outline: none;
+}
+
+.artwork-virtual-grid > div {
+  /* Smooth scrolling */
+  scroll-behavior: smooth;
 }
 
 /* Tablet - 3 columns */

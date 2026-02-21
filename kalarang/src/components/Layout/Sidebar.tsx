@@ -7,6 +7,7 @@ import { BsBriefcaseFill, BsPersonCircle } from 'react-icons/bs';
 import { IconType } from 'react-icons';
 import { useSidebar } from '../../context/SidebarContext';
 import { useAuth } from '../../context/AuthContext';
+import { canAccessRoute } from '../../utils/permissions';
 
 // Add keyframes animation
 const styleSheet = document.createElement("style");
@@ -42,7 +43,18 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   const [hoveredItem, setHoveredItem] = React.useState<string | null>(null);
   const { isCollapsed, toggleSidebar } = useSidebar();
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    // Direct path match
+    if (location.pathname === path) return true;
+    
+    // If we're on an artwork detail page, check the source route
+    if (location.pathname.startsWith('/card/')) {
+      const sourceRoute = sessionStorage.getItem('artworkSourceRoute');
+      return sourceRoute === path;
+    }
+    
+    return false;
+  };
 
   // All menu items
   const allMenuItems: Array<{ path: string; label: string; Icon: IconType }> = [
@@ -54,14 +66,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
     { path: '/profile', label: 'Profile', Icon: BsPersonCircle },
   ];
 
-  // Filter menu items based on user role
+  // Filter menu items based on permissions
   const menuItems = React.useMemo(() => {
-    if (appUser?.role === 'buyer') {
-      // Remove 'post' and 'portfolio' for buyers, keep profile
-      return allMenuItems.filter(item => item.path !== '/post' && item.path !== '/portfolio');
-    }
-    // Show all items except profile for artists
-    return allMenuItems.filter(item => item.path !== '/profile');
+    return allMenuItems.filter(item => canAccessRoute(appUser?.role, item.path));
   }, [appUser?.role]);
 
   return (

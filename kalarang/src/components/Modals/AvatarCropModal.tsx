@@ -16,16 +16,27 @@ const AvatarCropModal: React.FC<AvatarCropModalProps> = ({
   onSave,
   currentAvatarUrl,
 }) => {
-  const [imageSrc, setImageSrc] = useState<string | null>(currentAvatarUrl || null);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [croppedArea, setCroppedArea] = useState<Area | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Avatar is always 1:1 (square)
   const aspectRatio = 1;
 
-  const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
+  // Load current avatar when modal opens
+  React.useEffect(() => {
+    if (isOpen && currentAvatarUrl) {
+      setImageSrc(currentAvatarUrl);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+    }
+  }, [isOpen, currentAvatarUrl]);
+
+  const onCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
+    setCroppedArea(croppedArea);
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
@@ -61,13 +72,21 @@ const AvatarCropModal: React.FC<AvatarCropModalProps> = ({
       throw new Error('No 2d context');
     }
 
-    // Square output for avatar
-    const targetSize = 500; // High quality square output
+    // Match the canvas size exactly to the crop area dimensions
+    // This ensures 1:1 mapping with what user sees
+    canvas.width = pixelCrop.width;
+    canvas.height = pixelCrop.height;
 
-    canvas.width = targetSize;
-    canvas.height = targetSize;
+    // Clear canvas
+    ctx.clearRect(0, 0, pixelCrop.width, pixelCrop.height);
 
-    // Draw the cropped image scaled to target dimensions
+    // Create circular clipping path
+    ctx.beginPath();
+    ctx.arc(pixelCrop.width / 2, pixelCrop.height / 2, pixelCrop.width / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+
+    // Draw the exact cropped portion at 1:1 scale
     ctx.drawImage(
       image,
       pixelCrop.x,
@@ -76,8 +95,8 @@ const AvatarCropModal: React.FC<AvatarCropModalProps> = ({
       pixelCrop.height,
       0,
       0,
-      targetSize,
-      targetSize
+      pixelCrop.width,
+      pixelCrop.height
     );
 
     // Convert canvas to blob with high quality
@@ -89,7 +108,7 @@ const AvatarCropModal: React.FC<AvatarCropModalProps> = ({
         }
         const fileUrl = URL.createObjectURL(blob);
         resolve(fileUrl);
-      }, 'image/jpeg', 0.95);
+      }, 'image/png', 1.0); // Maximum quality
     });
   };
 
@@ -134,9 +153,10 @@ const AvatarCropModal: React.FC<AvatarCropModalProps> = ({
                 onCropChange={setCrop}
                 onCropComplete={onCropComplete}
                 onZoomChange={setZoom}
-                objectFit="contain"
+                objectFit="cover"
                 showGrid={false}
                 cropShape="round"
+                cropSize={{ width: 300, height: 300 }}
                 style={{
                   containerStyle: {
                     width: '100%',

@@ -4,13 +4,14 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  z-index: 2000;
+  z-index: 9999;
   animation: confirmFadeIn 0.2s ease-in;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
+  padding-top: 40px;
 }
 
 @keyframes confirmFadeIn {
@@ -35,7 +36,7 @@
 
 @keyframes confirmSlideUp {
   from {
-    transform: translateY(20px);
+    transform: translateY(-30px);
     opacity: 0;
   }
   to {

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Layout from '../../components/Layout/Layout';
 import ArtworkDetail, { Artwork as ArtworkDetailType, Artist } from '../../components/Artwork/ArtworkDetail';
 import LoadingState from '../../components/State/LoadingState';
 import { useAuth } from '../../context/AuthContext';
-import { logout } from '../../services/authService';
 import { getArtwork, incrementArtworkViews } from '../../services/artworkService';
+import { useFavorites } from '../../hooks/useCachedData';
+import { cache, cacheKeys } from '../../utils/cache';
 import { 
   saveArtworkToFavorites,
   removeArtworkFromFavorites,
@@ -25,13 +25,28 @@ const CardDetail: React.FC = () => {
   const [artist, setArtist] = useState<Artist | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  const { data: favoriteIds, updateCache: updateFavoritesCache, refetch: refetchFavorites } = useFavorites(appUser?.uid);
 
-  const handleLogout = async () => {
-    await logout();
-    window.location.href = '/';
-  };
+  // Listen for favorites changes from other components
+  useEffect(() => {
+    const handleFavoritesChanged = ((e: CustomEvent) => {
+      if (e.detail.userId === appUser?.uid) {
+        console.log('[CardDetail] Favorites changed in another component, refetching...');
+        refetchFavorites();
+      }
+    }) as EventListener;
+    
+    window.addEventListener('favorites-changed', handleFavoritesChanged);
+    return () => window.removeEventListener('favorites-changed', handleFavoritesChanged);
+  }, [appUser?.uid, refetchFavorites]);
 
   useEffect(() => {
+    // Set default source route if none exists (e.g., direct link access)
+    if (!sessionStorage.getItem('artworkSourceRoute')) {
+      sessionStorage.setItem('artworkSourceRoute', '/home');
+    }
+    
     if (id) {
       loadArtwork();
     }
@@ -107,18 +122,39 @@ const CardDetail: React.FC = () => {
       return;
     }
 
+    // Optimistic update - update UI immediately
+    const previousFavorites = favoriteIds || [];
+    const previousIsSaved = isSaved;
+    
+    setIsSaved(!isSaved);
+    updateFavoritesCache((oldFavorites) => {
+      const favorites = oldFavorites || [];
+      if (isSaved) {
+        return favorites.filter(favId => favId !== id);
+      } else {
+        return [...favorites, id];
+      }
+    });
+
     try {
       if (isSaved) {
         await removeArtworkFromFavorites(appUser.uid, id);
-        setIsSaved(false);
         toast.success('Removed from favorites');
       } else {
         await saveArtworkToFavorites(appUser.uid, id);
-        setIsSaved(true);
         toast.success('Added to favorites');
       }
+      // Invalidate favorite artworks cache
+      cache.invalidate(cacheKeys.favoriteArtworks(appUser.uid));
+      cache.invalidate(cacheKeys.favorites(appUser.uid));
+      
+      // Broadcast change to other components
+      window.dispatchEvent(new CustomEvent('favorites-changed', { detail: { userId: appUser.uid } }));
     } catch (error) {
       console.error('Error toggling save:', error);
+      // Rollback optimistic update on error
+      setIsSaved(previousIsSaved);
+      updateFavoritesCache(() => previousFavorites);
       toast.error('Failed to update favorites');
     }
   };
@@ -171,30 +207,27 @@ const CardDetail: React.FC = () => {
 
   if (loading || !artwork || !artist) {
     return (
-      <Layout onLogout={handleLogout} pageTitle="Loading...">
-        <LoadingState 
-          animation={lineArt1Animation}
-          message="Loading artwork details..." 
-          fullHeight 
-        />
-      </Layout>
+      <LoadingState 
+        animation={lineArt1Animation}
+        message="Loading artwork details..." 
+        fullHeight 
+      />
     );
   }
 
   return (
-    <Layout onLogout={handleLogout} pageTitle={artwork.title}>
-      <ArtworkDetail
-        artwork={artwork}
-        artist={artist}
-        currentUserAvatar={appUser?.email ? `https://ui-avatars.com/api/?name=${encodeURIComponent(appUser.name || appUser.email)}` : undefined}
-        onShare={handleShare}
-        onReachOut={handleReachOut}
-        onFollow={handleFollow}
-        onThumbnailClick={handleThumbnailClick}
-        onSave={handleLike}
-        isSaved={isSaved}
-      />
-    </Layout>
+    <ArtworkDetail
+      artwork={artwork}
+      artist={artist}
+      currentUserAvatar={appUser?.email ? `https://ui-avatars.com/api/?name=${encodeURIComponent(appUser.name || appUser.email)}` : undefined}
+      onShare={handleShare}
+      onReachOut={handleReachOut}
+      onFollow={handleFollow}
+      onThumbnailClick={handleThumbnailClick}
+      onSave={handleLike}
+      isSaved={isSaved}
+      currentUserId={appUser?.uid}
+    />
   );
 };
 

@@ -33,18 +33,35 @@ export interface UserProfile extends AppUser {
 }
 
 /**
+ * Convert blob URL to File object
+ */
+async function blobUrlToFile(blobUrl: string, filename: string): Promise<File> {
+  const response = await fetch(blobUrl);
+  const blob = await response.blob();
+  return new File([blob], filename, { type: blob.type });
+}
+
+/**
  * Upload profile image (avatar or banner)
  */
 export async function uploadProfileImage(
   userId: string,
-  file: Blob,
+  file: Blob | File | string,
   type: "avatar" | "banner"
 ): Promise<string> {
   const timestamp = Date.now();
-  const filename = `${type}_${timestamp}`;
+  const filename = `${type}_${timestamp}.jpg`;
   const storageRef = ref(storage, `users/${userId}/${filename}`);
 
-  await uploadBytes(storageRef, file);
+  // Handle blob URL (string) conversion
+  let fileToUpload: Blob | File;
+  if (typeof file === 'string') {
+    fileToUpload = await blobUrlToFile(file, filename);
+  } else {
+    fileToUpload = file;
+  }
+
+  await uploadBytes(storageRef, fileToUpload);
   const downloadURL = await getDownloadURL(storageRef);
   return downloadURL;
 }
@@ -106,4 +123,44 @@ export async function updateUsername(userId: string, username: string): Promise<
     username,
     updatedAt: serverTimestamp(),
   });
+}
+
+/**
+ * Update user banner
+ */
+export async function updateUserBanner(
+  userId: string,
+  bannerBlobUrl: string
+): Promise<string> {
+  // Upload banner to Firebase Storage
+  const bannerUrl = await uploadProfileImage(userId, bannerBlobUrl, 'banner');
+  
+  // Update user document with new banner URL
+  const userRef = doc(db, "users", userId);
+  await updateDoc(userRef, {
+    bannerImage: bannerUrl,
+    updatedAt: serverTimestamp(),
+  });
+  
+  return bannerUrl;
+}
+
+/**
+ * Update user avatar
+ */
+export async function updateUserAvatar(
+  userId: string,
+  avatarBlobUrl: string
+): Promise<string> {
+  // Upload avatar to Firebase Storage
+  const avatarUrl = await uploadProfileImage(userId, avatarBlobUrl, 'avatar');
+  
+  // Update user document with new avatar URL
+  const userRef = doc(db, "users", userId);
+  await updateDoc(userRef, {
+    avatar: avatarUrl,
+    updatedAt: serverTimestamp(),
+  });
+  
+  return avatarUrl;
 }

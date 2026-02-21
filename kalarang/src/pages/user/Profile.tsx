@@ -120,7 +120,7 @@ const Profile: React.FC = () => {
           <div style={styles.profileHeader}>
             <div style={styles.profileImageContainer}>
               {appUser?.role === 'artist' ? (
-                <img src="/artist.png" alt="Artist Profile" style={styles.profileImage} />
+                <img src={appUser.avatar || '/artist.png'} alt="Artist Profile" style={styles.profileImage} />
               ) : (
                 <img src="/man-with-hat.png" alt="Buyer Profile" style={styles.profileImage} />
               )}

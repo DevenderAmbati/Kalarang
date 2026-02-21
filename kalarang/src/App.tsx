@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Lottie from 'lottie-react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -20,13 +20,33 @@ import CardDetail from "./pages/artwork/CardDetail";
 import CreateUsername from "./pages/auth/CreateUsername";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
+import { PermissionGuard } from "./components/Permissions/PermissionGuard";
 import { useAuth } from "./context/AuthContext";
 import { SidebarProvider } from "./context/SidebarContext";
+import { Permission } from "./utils/permissions";
 import { ThemeProvider } from "./context/ThemeContext";
 import { logout } from "./services/authService";
 import laptopDrawing from './animations/Laptop-Drawing 1.json';
 import ArtistLanding from "./pages/landing/ArtistLanding";
 import BuyerLanding from "./pages/landing/BuyerLanding";
+
+// Persistent Feed Container Component
+const PersistentFeedContainer: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  return (
+    <Layout 
+      onLogout={handleLogout}
+      homeFeedComponent={<HomeFeed />}
+      discoverComponent={<Discover />}
+      favouritesComponent={<Favourites />}
+    >
+      {children}
+    </Layout>
+  );
+};
 
 function App() {
   const { firebaseUser, appUser, loading } = useAuth();
@@ -88,8 +108,8 @@ function App() {
         <Router>
           <SidebarProvider>
             <ToastContainer 
-              position="top-right"
-              autoClose={4000}
+              position="top-center"
+              autoClose={2000}
               hideProgressBar={false}
               newestOnTop={true}
               closeOnClick
@@ -123,11 +143,16 @@ function App() {
                 path="/create-username"
                 element={
                   <ProtectedRoute>
-                    {appUser?.role === "artist" && !appUser?.username ? (
-                      <CreateUsername />
-                    ) : (
-                      <Navigate to={appUser?.role === "artist" ? "/artist" : "/dashboard"} replace />
-                    )}
+                    <PermissionGuard 
+                      permission={Permission.CREATE_USERNAME}
+                      redirectTo="/home"
+                    >
+                      {!appUser?.username ? (
+                        <CreateUsername />
+                      ) : (
+                        <Navigate to="/artist" replace />
+                      )}
+                    </PermissionGuard>
                   </ProtectedRoute>
                 }
               />
@@ -156,11 +181,16 @@ function App() {
                 path="/upload"
                 element={
                   <ProtectedRoute>
-                    {needsUsernameCreation() ? (
-                      <Navigate to="/create-username" replace />
-                    ) : (
-                      <Upload />
-                    )}
+                    <PermissionGuard 
+                      permission={Permission.CREATE_ARTWORK}
+                      redirectTo="/home"
+                    >
+                      {needsUsernameCreation() ? (
+                        <Navigate to="/create-username" replace />
+                      ) : (
+                        <Upload />
+                      )}
+                    </PermissionGuard>
                   </ProtectedRoute>
                 }
               />
@@ -169,15 +199,16 @@ function App() {
                 path="/artist"
                 element={
                   <ProtectedRoute>
-                    {appUser?.role === "artist" ? (
-                      needsUsernameCreation() ? (
+                    <PermissionGuard 
+                      permission={Permission.VIEW_ARTIST_PROFILE}
+                      redirectTo="/home"
+                    >
+                      {needsUsernameCreation() ? (
                         <Navigate to="/create-username" replace />
                       ) : (
                         <ArtistLanding />
-                      )
-                    ) : (
-                      <Navigate to="/dashboard" replace />
-                    )}
+                      )}
+                    </PermissionGuard>
                   </ProtectedRoute>
                 }
               />
@@ -186,11 +217,12 @@ function App() {
                 path="/buyer"
                 element={
                   <ProtectedRoute>
-                    {appUser?.role === "buyer" ? (
+                    <PermissionGuard 
+                      permission={Permission.VIEW_BUYER_PROFILE}
+                      redirectTo="/home"
+                    >
                       <BuyerLanding />
-                    ) : (
-                      <Navigate to="/dashboard" replace />
-                    )}
+                    </PermissionGuard>
                   </ProtectedRoute>
                 }
               />
@@ -226,7 +258,7 @@ function App() {
                     {needsUsernameCreation() ? (
                       <Navigate to="/create-username" replace />
                     ) : (
-                      <HomeFeed />
+                      <PersistentFeedContainer />
                     )}
                   </ProtectedRoute>
                 }
@@ -239,7 +271,7 @@ function App() {
                     {needsUsernameCreation() ? (
                       <Navigate to="/create-username" replace />
                     ) : (
-                      <Discover />
+                      <PersistentFeedContainer />
                     )}
                   </ProtectedRoute>
                 }
@@ -249,11 +281,16 @@ function App() {
                 path="/post"
                 element={
                   <ProtectedRoute>
-                    {needsUsernameCreation() ? (
-                      <Navigate to="/create-username" replace />
-                    ) : (
-                      <Upload />
-                    )}
+                    <PermissionGuard 
+                      permission={Permission.CREATE_ARTWORK}
+                      redirectTo="/home"
+                    >
+                      {needsUsernameCreation() ? (
+                        <Navigate to="/create-username" replace />
+                      ) : (
+                        <Upload />
+                      )}
+                    </PermissionGuard>
                   </ProtectedRoute>
                 }
               />
@@ -265,7 +302,7 @@ function App() {
                     {needsUsernameCreation() ? (
                       <Navigate to="/create-username" replace />
                     ) : (
-                      <Favourites />
+                      <PersistentFeedContainer />
                     )}
                   </ProtectedRoute>
                 }
@@ -275,11 +312,16 @@ function App() {
                 path="/portfolio"
                 element={
                   <ProtectedRoute>
-                    {needsUsernameCreation() ? (
-                      <Navigate to="/create-username" replace />
-                    ) : (
-                      <Portfolio />
-                    )}
+                    <PermissionGuard 
+                      permission={Permission.VIEW_PORTFOLIO}
+                      redirectTo="/home"
+                    >
+                      {needsUsernameCreation() ? (
+                        <Navigate to="/create-username" replace />
+                      ) : (
+                        <Portfolio />
+                      )}
+                    </PermissionGuard>
                   </ProtectedRoute>
                 }
               />
@@ -302,7 +344,9 @@ function App() {
                 path="/card/:id"
                 element={
                   <ProtectedRoute>
-                    <CardDetail />
+                    <PersistentFeedContainer>
+                      <CardDetail />
+                    </PersistentFeedContainer>
                   </ProtectedRoute>
                 }
               />

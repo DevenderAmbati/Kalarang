@@ -6,6 +6,7 @@ import { BiUpload } from 'react-icons/bi';
 import { BsBriefcaseFill, BsPersonCircle } from 'react-icons/bs';
 import { IconType } from 'react-icons';
 import { useAuth } from '../../context/AuthContext';
+import { canAccessRoute } from '../../utils/permissions';
 import './BottomNav.css';
 
 /**
@@ -39,7 +40,18 @@ const BottomNav: React.FC = () => {
   const [, forceUpdate] = React.useReducer(x => x + 1, 0);
 
   // Check if a path is currently active
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    // Direct path match
+    if (location.pathname === path) return true;
+    
+    // If we're on an artwork detail page, check the source route
+    if (location.pathname.startsWith('/card/')) {
+      const sourceRoute = sessionStorage.getItem('artworkSourceRoute');
+      return sourceRoute === path;
+    }
+    
+    return false;
+  };
 
   // All navigation items
   const allNavItems: NavItem[] = [
@@ -51,14 +63,9 @@ const BottomNav: React.FC = () => {
     { path: '/profile', label: 'Profile', Icon: BsPersonCircle },
   ];
 
-  // Filter navigation items based on user role
+  // Filter navigation items based on permissions
   const navItems = React.useMemo(() => {
-    if (appUser?.role === 'buyer') {
-      // Remove 'post' and 'portfolio' for buyers, keep profile
-      return allNavItems.filter(item => item.path !== '/post' && item.path !== '/portfolio');
-    }
-    // Show all items except profile for artists
-    return allNavItems.filter(item => item.path !== '/profile');
+    return allNavItems.filter(item => canAccessRoute(appUser?.role, item.path));
   }, [appUser?.role]);
 
   // Find the index of the active item for the wave effect

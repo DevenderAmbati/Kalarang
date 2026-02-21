@@ -12,7 +12,7 @@ interface AboutArtistProps {
   }>;
   education?: string[];
   commissions?: {
-    status: 'Open' | 'Closed';
+    status?: 'Open' | 'Closed';
     description: string;
     ctaText?: string;
   };
@@ -50,32 +50,18 @@ const PortfolioIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const AboutArtist: React.FC<AboutArtistProps> = ({
-  bio = "Welcome to my creative space! I'm a passionate artist dedicated to bringing imagination to life through various mediums. My work explores the interplay between light and shadow, emotion and form, creating pieces that invite viewers to discover their own interpretations and connections.",
-  artStyle = ["Oil Painting", "Digital Art", "Mixed Media", "Abstract", "Portraiture", "Landscape"],
-  philosophy = "I believe art has the power to connect people across cultures and experiences. Through my work, I aim to create pieces that resonate on both emotional and aesthetic levels, inviting viewers to explore their own interpretations and find personal meaning within each creation.",
-  achievements = [
-    "Winner of the Annual Contemporary Art Award 2024",
-    "Featured Artist in Modern Gallery Exhibition 2023",
-    "Recognition for Outstanding Digital Art Innovation"
-  ],
-  exhibitions = [
-    { year: "2024", title: "Contemporary Visions - Metropolitan Gallery" },
-    { year: "2023", title: "Modern Expressions - Art District Showcase" },
-    { year: "2022", title: "Digital Renaissance - Tech Art Festival" }
-  ],
-  education = [
-    "Master of Fine Arts – School of Aryan",
-    "Bachelor of Fine Arts – School of The Arts"
-  ],
+  bio = "",
+  artStyle = [],
+  philosophy = "",
+  achievements = [],
+  exhibitions = [],
+  education = [],
   commissions = {
-    status: "Open",
-    description: "I'm currently accepting commissions for custom artwork. Let's bring your vision to life!",
+    status: undefined,
+    description: "",
     ctaText: "Get in Touch"
   },
-  links = [
-    { label: "Instagram", url: "https://instagram.com/artist", icon: "instagram" },
-    { label: "Portfolio", url: "https://portfolio.com", icon: "portfolio" }
-  ]
+  links = []
 }) => {
   const getIcon = (iconName: string, className: string) => {
     switch (iconName) {
@@ -98,95 +84,127 @@ const AboutArtist: React.FC<AboutArtistProps> = ({
     <div className="about-artist">
       <section className="section">
         <h1 className="main-heading">About The Artist</h1>
-        <p className="bio-text">{bio}</p>
+        {bio ? (
+          <p className="bio-text">{bio}</p>
+        ) : (
+          <p className="empty-field-message">No bio added yet.</p>
+        )}
       </section>
 
       <section className="section">
         <h2 className="section-heading">Art Style & Mediums</h2>
-        <div className="art-style-tags">
-          {artStyle.map((style, index) => (
-            <span key={index} className="art-style-tag">
-              {style}
-            </span>
-          ))}
-        </div>
+        {artStyle && artStyle.length > 0 ? (
+          <div className="art-style-tags">
+            {artStyle.map((style, index) => (
+              <span key={index} className="art-style-tag">
+                {style}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="empty-field-message">No art styles added yet.</p>
+        )}
       </section>
 
       <section className="section">
         <h2 className="section-heading">Artistic Philosophy</h2>
-        <p className="philosophy-text">{philosophy}</p>
+        {philosophy ? (
+          <p className="philosophy-text">{philosophy}</p>
+        ) : (
+          <p className="empty-field-message">No philosophy added yet.</p>
+        )}
       </section>
 
       <section className="section">
         <h2 className="section-heading">Achievements</h2>
-        <ul className="achievements-list">
-          {achievements.map((achievement, index) => (
-            <li key={index} className="achievement-item">
-              {getAchievementIcon(index)}
-              <span className="achievement-text">{achievement}</span>
-            </li>
-          ))}
-        </ul>
+        {achievements && achievements.length > 0 ? (
+          <ul className="achievements-list">
+            {achievements.map((achievement, index) => (
+              <li key={index} className="achievement-item">
+                {getAchievementIcon(index)}
+                <span className="achievement-text">{achievement}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="empty-field-message">No achievements added yet.</p>
+        )}
       </section>
 
       <section className="section">
         <h2 className="section-heading">Exhibitions / Recognition</h2>
-        <ul className="exhibitions-list">
-          {exhibitions.map((exhibition, index) => (
-            <li key={index} className="exhibition-item">
-              <span className="exhibition-year">{exhibition.year}</span>
-              <span className="exhibition-title">{exhibition.title}</span>
-            </li>
-          ))}
-        </ul>
+        {exhibitions && exhibitions.length > 0 ? (
+          <ul className="exhibitions-list">
+            {exhibitions.map((exhibition, index) => (
+              <li key={index} className="exhibition-item">
+                <span className="exhibition-year">{exhibition.year}</span>
+                <span className="exhibition-title">{exhibition.title}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="empty-field-message">No exhibitions added yet.</p>
+        )}
       </section>
 
       <section className="section">
         <h2 className="section-heading">Education</h2>
-        <ul className="education-list">
-          {education.map((degree, index) => (
-            <li key={index} className="education-item">
-              {degree}
-            </li>
-          ))}
-        </ul>
+        {education && education.length > 0 ? (
+          <ul className="education-list">
+            {education.map((degree, index) => (
+              <li key={index} className="education-item">
+                {degree}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="empty-field-message">No education added yet.</p>
+        )}
       </section>
 
-      <section className="section">
-        <h2 className="section-heading">Commissions</h2>
-        <div className="commissions-card">
-          <div className="commission-header">
-            <span className={`commission-status ${commissions.status.toLowerCase()}`}>
-              {commissions.status}
-            </span>
+      {commissions.description && (
+        <section className="section">
+          <h2 className="section-heading">Commissions</h2>
+          <div className="commissions-card">
+            {commissions.status && (
+              <div className="commission-header">
+                <span className={`commission-status ${commissions.status.toLowerCase()}`}>
+                  {commissions.status}
+                </span>
+              </div>
+            )}
+            <p className="commission-description">{commissions.description}</p>
+            {commissions.status === 'Open' && (
+              <button className="commission-cta">
+                {commissions.ctaText || 'Get in Touch'}
+              </button>
+            )}
           </div>
-          <p className="commission-description">{commissions.description}</p>
-          {commissions.status === 'Open' && (
-            <button className="commission-cta">
-              {commissions.ctaText || 'Get in Touch'}
-            </button>
-          )}
-        </div>
-      </section>
+        </section>
+      )}
 
       <section className="section">
         <h2 className="section-heading">Links</h2>
-        <ul className="links-list">
-          {links.map((link, index) => (
-            <li key={index} className="link-item">
-              <a 
-                href={link.url} 
-                className="external-link"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`Visit ${link.label} profile`}
-              >
-                {getIcon(link.icon, "link-icon")}
-                {link.label}
-              </a>
-            </li>
-          ))}
-        </ul>
+        {links && links.length > 0 ? (
+          <ul className="links-list">
+            {links.map((link, index) => (
+              <li key={index} className="link-item">
+                <a 
+                  href={link.url} 
+                  className="external-link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`Visit ${link.label} profile`}
+                >
+                  {getIcon(link.icon, "link-icon")}
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="empty-field-message">No links added yet.</p>
+        )}
       </section>
     </div>
   );

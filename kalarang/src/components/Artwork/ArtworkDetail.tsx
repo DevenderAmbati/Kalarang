@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './ArtworkDetail.css';
 
 export interface Artwork {
@@ -32,6 +33,8 @@ export interface ArtworkDetailProps {
   onFollow?: (artistId: string) => void;
   onThumbnailClick?: (imageUrl: string) => void;
   isSaved?: boolean;
+  onArtistClick?: (artistId: string) => void;
+  currentUserId?: string;
 }
 
 const ArtworkDetail: React.FC<ArtworkDetailProps> = ({
@@ -44,8 +47,15 @@ const ArtworkDetail: React.FC<ArtworkDetailProps> = ({
   onFollow,
   onThumbnailClick,
   isSaved = false,
+  onArtistClick,
+  currentUserId,
 }) => {
+  const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState(artwork.artworkImage);
+
+  const handleBack = () => {
+    navigate(-1);
+  };
 
   const handleIconClick = (
     e: React.MouseEvent,
@@ -54,6 +64,15 @@ const ArtworkDetail: React.FC<ArtworkDetailProps> = ({
     e.stopPropagation();
     if (action) {
       action();
+    }
+  };
+
+  const handleArtistNameClick = () => {
+    const isOwnProfile = artist.id === currentUserId;
+    if (onArtistClick) {
+      onArtistClick(artist.id);
+    } else {
+      window.location.href = isOwnProfile ? '/portfolio' : `/portfolio/${artist.id}`;
     }
   };
 
@@ -89,7 +108,13 @@ const ArtworkDetail: React.FC<ArtworkDetailProps> = ({
               className="artist-avatar-detail"
             />
           </div>
-          <span className="artist-name-detail">{artist.name}</span>
+          <span 
+            className="artist-name-detail"
+            onClick={handleArtistNameClick}
+            style={{ cursor: 'pointer' }}
+          >
+            {artist.name}
+          </span>
           <button
             className="follow-button"
             onClick={(e) => handleIconClick(e, () => onFollow?.(artist.id))}
@@ -98,7 +123,24 @@ const ArtworkDetail: React.FC<ArtworkDetailProps> = ({
           </button>
         </div>
         
-        
+        <button
+          className="back-button-circular"
+          onClick={handleBack}
+          aria-label="Go back"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+        </button>
       </div>
 
       {/* Main Content */}

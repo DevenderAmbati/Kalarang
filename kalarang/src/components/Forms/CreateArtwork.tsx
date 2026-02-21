@@ -2,11 +2,29 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Lottie from 'lottie-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  MouseSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
 import UploadDropzone from './UploadDropzone';
 import ImagePreviewGrid from './ImagePreviewGrid';
 import ArtworkMetadataForm, { ArtworkFormData } from './ArtworkMetadataForm';
 import { useAuth } from '../../context/AuthContext';
 import { createArtwork, toggleArtworkPublish, getArtwork, updateArtwork, uploadArtworkImages } from '../../services/artworkService';
+import { cache, cacheKeys } from '../../utils/cache';
 import artAnimation from '../../animations/Line art (1).json';
 import publishAnimation from '../../animations/Line art (2).json';
 import './CreateArtwork.css';
@@ -25,7 +43,6 @@ const CreateArtwork: React.FC = () => {
   const editArtworkId = searchParams.get('edit');
   const [images, setImages] = useState<ImagePreview[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [savedArtworkId, setSavedArtworkId] = useState<string | null>(null);
@@ -47,6 +64,115 @@ const CreateArtwork: React.FC = () => {
   });
 
   const maxImages = 6;
+
+  // Load draft from localStorage if available (for new artworks only)
+  useEffect(() => {
+    if (editArtworkId) return; // Don't load draft if editing existing artwork
+
+    const savedDraft = localStorage.getItem('artworkDraft');
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        if (draft.formData) {
+          setFormData(draft.formData);
+        }
+        // Restore images from base64 data URLs
+        if (draft.images && Array.isArray(draft.images)) {
+          const restoredImages: ImagePreview[] = draft.images.map((img: any) => ({
+            id: img.id,
+            url: img.dataUrl,
+            isExisting: false,
+          }));
+          setImages(restoredImages);
+        }
+        console.log('[Draft] Loaded from localStorage:', draft);
+        toast.info('Draft restored from your last session', {
+          autoClose: 3000,
+        });
+      } catch (error) {
+        console.error('Error loading draft:', error);
+      }
+    }
+  }, [editArtworkId]);
+
+  // Save draft to localStorage whenever form data changes
+  useEffect(() => {
+    if (editArtworkId) return; // Don't save draft if editing existing artwork
+
+    // Only save if there's actual data (not just empty form)
+    const hasData = formData.title || formData.description || formData.category || 
+                     formData.medium || formData.createdDate || formData.width || 
+                     formData.height || formData.price;
+    
+    if (!hasData && images.length === 0) {
+      // If form is empty and no images, remove the draft
+      localStorage.removeItem('artworkDraft');
+      return;
+    }
+
+    // Debounce the save to avoid too many writes
+    const timeoutId = setTimeout(async () => {
+      try {
+        // Convert images to base64 data URLs for storage
+        const imagesToSave = await Promise.all(
+          images.filter(img => !img.isExisting).map(async (img) => {
+            // If it's a blob URL, fetch and convert to base64
+            if (img.url.startsWith('blob:')) {
+              try {
+                const response = await fetch(img.url);
+                const blob = await response.blob();
+                const reader = new FileReader();
+                const dataUrl = await new Promise<string>((resolve) => {
+                  reader.onloadend = () => resolve(reader.result as string);
+                  reader.readAsDataURL(blob);
+                });
+                return { id: img.id, dataUrl };
+              } catch (error) {
+                console.error('Error converting image:', error);
+                return null;
+              }
+            }
+            return { id: img.id, dataUrl: img.url };
+          })
+        );
+
+        const draft = {
+          formData,
+          images: imagesToSave.filter(img => img !== null),
+          timestamp: Date.now(),
+        };
+        
+        const draftStr = JSON.stringify(draft);
+        // Check if draft is too large (localStorage limit is typically 5-10MB)
+        if (draftStr.length > 4.5 * 1024 * 1024) { // 4.5MB limit to be safe
+          console.warn('[Draft] Draft too large, saving without images');
+          const draftWithoutImages = {
+            formData,
+            timestamp: Date.now(),
+          };
+          localStorage.setItem('artworkDraft', JSON.stringify(draftWithoutImages));
+          toast.warning('Draft saved without images (size limit)', { autoClose: 2000 });
+        } else {
+          localStorage.setItem('artworkDraft', draftStr);
+          console.log('[Draft] Saved to localStorage:', draft);
+        }
+      } catch (error) {
+        console.error('[Draft] Error saving:', error);
+        // If error (e.g., quota exceeded), try saving without images
+        try {
+          const draftWithoutImages = {
+            formData,
+            timestamp: Date.now(),
+          };
+          localStorage.setItem('artworkDraft', JSON.stringify(draftWithoutImages));
+        } catch (e) {
+          console.error('[Draft] Failed to save even without images:', e);
+        }
+      }
+    }, 500); // Wait 500ms after last change before saving
+
+    return () => clearTimeout(timeoutId);
+  }, [formData, images, editArtworkId]);
 
   // Load existing artwork if editing
   useEffect(() => {
@@ -166,29 +292,41 @@ const CreateArtwork: React.FC = () => {
     }
   }, [editArtworkId, savedArtworkId]);
 
-  const handleDragStart = useCallback((index: number) => {
-    setDraggedIndex(index);
-  }, []);
+  // dnd-kit sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8, // 8px of movement required before drag starts
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200, // 200ms press before drag starts
+        tolerance: 5, // 5px tolerance for movement
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
-  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
 
-    setImages(prev => {
-      const newImages = [...prev];
-      const draggedItem = newImages[draggedIndex];
-      newImages.splice(draggedIndex, 1);
-      newImages.splice(index, 0, draggedItem);
-      return newImages;
-    });
-    setDraggedIndex(index);
-  }, [draggedIndex]);
-
-  const handleDragEnd = useCallback(() => {
-    setDraggedIndex(null);
-    // Mark as having unsaved changes when editing or after initial save
-    if (editArtworkId || savedArtworkId) {
-      setHasUnsavedChanges(true);
+    if (over && active.id !== over.id) {
+      setImages((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        
+        const reordered = arrayMove(items, oldIndex, newIndex);
+        
+        // Mark as having unsaved changes when editing or after initial save
+        if (editArtworkId || savedArtworkId) {
+          setHasUnsavedChanges(true);
+        }
+        
+        return reordered;
+      });
     }
   }, [editArtworkId, savedArtworkId]);
 
@@ -355,8 +493,18 @@ const CreateArtwork: React.FC = () => {
       setSavedArtworkId(artworkId);
       toast.success(savedArtworkId ? 'Artwork updated successfully!' : 'Artwork saved to gallery! You can now publish it to feature.');
       
+      // Invalidate portfolio cache to reflect changes
+      if (appUser) {
+        console.log('[Cache] Invalidating portfolio cache after save');
+        cache.invalidate(cacheKeys.galleryWorks(appUser.uid));
+        cache.invalidate(cacheKeys.artistWorks(appUser.uid));
+      }
+      
       // Clear unsaved changes flag after successful save
       setHasUnsavedChanges(false);
+      
+      // Clear draft from localStorage after successful save
+      localStorage.removeItem('artworkDraft');
       
     } catch (error: any) {
       console.error('Error saving artwork:', error);
@@ -395,7 +543,18 @@ const CreateArtwork: React.FC = () => {
 
       toast.success('Artwork published successfully! It will now appear in Discover.');
       
+      // Invalidate all portfolio caches when publishing
+      if (appUser) {
+        console.log('[Cache] Invalidating all portfolio cache after publish');
+        cache.invalidate(cacheKeys.publishedWorks(appUser.uid));
+        cache.invalidate(cacheKeys.galleryWorks(appUser.uid));
+        cache.invalidate(cacheKeys.artistWorks(appUser.uid));
+      }
+      
       images.forEach(img => URL.revokeObjectURL(img.url));
+      
+      // Clear draft from localStorage after successful publish
+      localStorage.removeItem('artworkDraft');
       
       setImages([]);
       setFormData({
@@ -625,14 +784,22 @@ const CreateArtwork: React.FC = () => {
                 <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '1rem', fontStyle: 'italic' }}>
                   Drag images to rearrange their order
                 </p>
-                <ImagePreviewGrid
-                  images={images}
-                  onRemoveImage={handleRemoveImage}
-                  onDragStart={handleDragStart}
-                  onDragOver={handleDragOver}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
                   onDragEnd={handleDragEnd}
-                  maxImages={maxImages}
-                />
+                >
+                  <SortableContext
+                    items={images.map(img => img.id)}
+                    strategy={rectSortingStrategy}
+                  >
+                    <ImagePreviewGrid
+                      images={images}
+                      onRemoveImage={handleRemoveImage}
+                      maxImages={maxImages}
+                    />
+                  </SortableContext>
+                </DndContext>
               </div>
             </div>
           </div>
@@ -664,6 +831,35 @@ const CreateArtwork: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="button-group">
+            {/* Clear Draft Button - Only show for new artworks with data */}
+            {!editArtworkId && (formData.title || formData.description || images.length > 0) && (
+              <button
+                type="button"
+                className="button button-outline"
+                onClick={() => {
+             
+                    setFormData({
+                      title: '',
+                      description: '',
+                      createdDate: '',
+                      category: '',
+                      medium: '',
+                      width: '',
+                      height: '',
+                      price: '',
+                      isCommissioned: false,
+                    });
+                    setImages([]);
+                    localStorage.removeItem('artworkDraft');
+                    toast.success('Draft cleared');
+                  
+                }}
+                style={{ color: 'var(--color-royal)'}}
+              >
+                Clear Draft
+              </button>
+            )}
+            
             {/* Show save/update button when there are unsaved changes */}
             {hasUnsavedChanges && (
               <button

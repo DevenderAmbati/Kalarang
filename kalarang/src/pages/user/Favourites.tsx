@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import Layout from '../../components/Layout/Layout';
 import { useNavigate } from 'react-router-dom';
-import { logout } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
 import { Artwork } from '../../components/Artwork/ArtworkGrid';
 import EmptyState from '../../components/State/EmptyState';
 import LoadingState from '../../components/State/LoadingState';
-import { getUserFavoriteArtworkIds, removeArtworkFromFavorites } from '../../services/interactionService';
-import { getArtwork } from '../../services/artworkService';
+import LazyImage from '../../components/Common/LazyImage';
+import { useFavoriteArtworks } from '../../hooks/useCachedData';
+import { removeArtworkFromFavorites } from '../../services/interactionService';
 import girlAnimation from '../../animations/girl bangs computer.json';
 import noContentAnimation from '../../animations/no content.json';
 import { toast } from 'react-toastify';
+import { cache, cacheKeys } from '../../utils/cache';
 import '../feed/Discover.css';
 
 // Custom Artwork Card Component for Favorites with filled hearts by default
@@ -19,17 +19,27 @@ interface FavoriteArtworkCardProps {
   onArtworkClick: (id: string) => void;
   onRemoveFromFavorites: (id: string) => void;
   isRemoving?: boolean;
+  currentUserId?: string;
 }
 
 const FavoriteArtworkCard: React.FC<FavoriteArtworkCardProps> = ({ 
   artwork, 
   onArtworkClick, 
   onRemoveFromFavorites,
-  isRemoving = false
+  isRemoving = false,
+  currentUserId
 }) => {
   const handleCardClick = () => {
     if (!isRemoving) {
       onArtworkClick(artwork.id);
+    }
+  };
+
+  const handleArtistClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (artwork.artistId) {
+      const isOwnProfile = artwork.artistId === currentUserId;
+      window.location.href = isOwnProfile ? '/portfolio' : `/portfolio/${artwork.artistId}`;
     }
   };
 
@@ -55,7 +65,13 @@ const FavoriteArtworkCard: React.FC<FavoriteArtworkCardProps> = ({
       } : {}}
     >
       <div className="artwork-grid-card-image-container">
-        <img src={artwork.artworkImage} alt={artwork.title} className="artwork-grid-card-image" />
+        <LazyImage src={artwork.artworkImage} alt={artwork.title} className="artwork-grid-card-image" />
+        
+        {artwork.sold && (
+          <div className="artwork-sold-badge">
+            <span>SOLD</span>
+          </div>
+        )}
         
         <div className="artwork-grid-card-overlay">
           <h3 className="artwork-grid-card-title">{artwork.title}</h3>
@@ -80,9 +96,15 @@ const FavoriteArtworkCard: React.FC<FavoriteArtworkCardProps> = ({
       <div className="artwork-grid-card-content">
         <div className="artwork-grid-card-artist">
           <div className="artwork-grid-card-avatar">
-            <img src={artwork.artistAvatar} alt={artwork.artistName} />
+            <LazyImage src={artwork.artistAvatar} alt={artwork.artistName} />
           </div>
-          <span className="artwork-grid-card-artist-name">{artwork.artistName}</span>
+          <span 
+            className="artwork-grid-card-artist-name"
+            onClick={handleArtistClick}
+            style={{ cursor: artwork.artistId ? 'pointer' : 'default' }}
+          >
+            {artwork.artistName}
+          </span>
           <div className="artwork-grid-card-price">
             {formatPrice(artwork.price)}
           </div>
@@ -95,70 +117,39 @@ const FavoriteArtworkCard: React.FC<FavoriteArtworkCardProps> = ({
 const Favourites: React.FC = () => {
   const navigate = useNavigate();
   const { appUser } = useAuth();
-  const [favoriteArtworks, setFavoriteArtworks] = useState<Artwork[]>([]);
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [localArtworks, setLocalArtworks] = useState<Artwork[] | null>(null);
 
+  // Use cached data hook
+  const { data: favoriteArtworks, isLoading: loading, refetch } = useFavoriteArtworks(appUser?.uid);
+  
+  // Sync local artworks with server data
   useEffect(() => {
-    loadFavorites();
-    // Also reload when user navigates to this page
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        loadFavorites();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [appUser]);
-
-  const loadFavorites = async () => {
-    if (!appUser) {
-      setLoading(false);
-      return;
+    if (favoriteArtworks) {
+      setLocalArtworks(favoriteArtworks);
     }
+  }, [favoriteArtworks]);
+  
+  // Use local artworks for display (with optimistic updates)
+  const displayArtworks = localArtworks || favoriteArtworks;
 
-    try {
-      setLoading(true);
-      const favoriteIds = await getUserFavoriteArtworkIds(appUser.uid);
-      
-      if (favoriteIds.length === 0) {
-        setFavoriteArtworks([]);
-        return;
+  // Listen for favorites changes from other components
+  useEffect(() => {
+    const handleFavoritesChanged = ((e: CustomEvent) => {
+      if (e.detail.userId === appUser?.uid) {
+        console.log('[Favourites] Favorites changed in another component, refetching...');
+        refetch();
       }
-
-      // Fetch all favorite artworks
-      const artworksPromises = favoriteIds.map(id => getArtwork(id));
-      const artworks = await Promise.all(artworksPromises);
-      
-      // Filter out any null results and convert to Artwork type
-      const validArtworks: Artwork[] = artworks
-        .filter(artwork => artwork !== null)
-        .map(artwork => ({
-          id: artwork!.id,
-          title: artwork!.title,
-          artworkImage: artwork!.images[0],
-          artistName: artwork!.artistName,
-          artistAvatar: artwork!.artistAvatar || '/artist.png',
-          price: artwork!.price,
-        }));
-
-      setFavoriteArtworks(validArtworks);
-    } catch (error) {
-      console.error('Error loading favorites:', error);
-      setFavoriteArtworks([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/');
-  };
+    }) as EventListener;
+    
+    window.addEventListener('favorites-changed', handleFavoritesChanged);
+    return () => window.removeEventListener('favorites-changed', handleFavoritesChanged);
+  }, [appUser?.uid, refetch]);
 
   const handleArtworkClick = (id: string) => {
     console.log('Artwork clicked:', id);
     // Navigate to artwork detail page
+    sessionStorage.setItem('artworkSourceRoute', '/favourites');
     navigate(`/card/${id}`);
   };
 
@@ -169,14 +160,21 @@ const Favourites: React.FC = () => {
     setRemovingIds(prev => new Set(prev).add(id));
     
     try {
+      // Optimistically remove from local state immediately
+      setLocalArtworks(prev => prev ? prev.filter(artwork => artwork.id !== id) : prev);
+      
       // Remove from database
       await removeArtworkFromFavorites(appUser.uid, id);
       
-      // After animation duration, actually remove from state
+      // Invalidate cache immediately
+      cache.invalidate(cacheKeys.favorites(appUser.uid));
+      cache.invalidate(cacheKeys.favoriteArtworks(appUser.uid));
+      
+      // Broadcast change to other components
+      window.dispatchEvent(new CustomEvent('favorites-changed', { detail: { userId: appUser.uid } }));
+      
+      // After animation duration, clean up animation state
       setTimeout(() => {
-        setFavoriteArtworks(prevArtworks => 
-          prevArtworks.filter(artwork => artwork.id !== id)
-        );
         setRemovingIds(prev => {
           const newSet = new Set(prev);
           newSet.delete(id);
@@ -187,6 +185,8 @@ const Favourites: React.FC = () => {
     } catch (error) {
       console.error('Error removing from favorites:', error);
       toast.error('Failed to remove from favorites');
+      // Rollback optimistic update on error
+      setLocalArtworks(favoriteArtworks);
       // Reset animation state on error
       setRemovingIds(prev => {
         const newSet = new Set(prev);
@@ -197,7 +197,7 @@ const Favourites: React.FC = () => {
   };
 
   return (
-    <Layout onLogout={handleLogout} pageTitle="Favourites">
+    <>
       <style>{`
         @media (min-width: 1025px) {
           .favourites-header {
@@ -217,21 +217,22 @@ const Favourites: React.FC = () => {
 
         {/* Artwork Grid */}
         <div className="discover-content favourites-content">
-          {loading ? (
+          {loading && !displayArtworks ? (
             <LoadingState 
               animation={girlAnimation}
               message="Loading your favorites..." 
               fullHeight 
             />
-          ) : favoriteArtworks.length > 0 ? (
+          ) : (displayArtworks && displayArtworks.length > 0) ? (
             <div className="artwork-grid">
-              {favoriteArtworks.map((artwork) => (
+              {displayArtworks.map((artwork) => (
                 <FavoriteArtworkCard
                   key={artwork.id}
                   artwork={artwork}
                   onArtworkClick={handleArtworkClick}
                   onRemoveFromFavorites={handleRemoveFromFavorites}
                   isRemoving={removingIds.has(artwork.id)}
+                  currentUserId={appUser?.uid}
                 />
               ))}
             </div>
@@ -246,7 +247,7 @@ const Favourites: React.FC = () => {
           )}
         </div>
       </div>
-    </Layout>
+    </>
   );
 };
 

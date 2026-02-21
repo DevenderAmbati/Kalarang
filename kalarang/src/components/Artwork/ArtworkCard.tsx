@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './ArtworkCard.css';
+import LazyImage from '../Common/LazyImage';
 
 export interface ArtworkCardProps {
   id: number;
   artworkImage: string;
   artistAvatar: string;
   artistName: string;
+  artistId?: string;
+  currentUserId?: string;
   title?: string;
   description: string;
   onCardClick?: (id: number) => void;
@@ -20,6 +23,8 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
   artworkImage,
   artistAvatar,
   artistName,
+  artistId,
+  currentUserId,
   title,
   description,
   onCardClick,
@@ -28,9 +33,19 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
   isSaved = false,
   sold = false,
 }) => {
+  const [isAnimating, setIsAnimating] = useState(false);
+
   const handleCardClick = () => {
     if (onCardClick) {
       onCardClick(id);
+    }
+  };
+
+  const handleArtistClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (artistId) {
+      const isOwnProfile = artistId === currentUserId;
+      window.location.href = isOwnProfile ? '/portfolio' : `/portfolio/${artistId}`;
     }
   };
 
@@ -44,17 +59,30 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
     }
   };
 
+  const handleSaveClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsAnimating(true);
+    if (onSave) onSave(id);
+    setTimeout(() => setIsAnimating(false), 400);
+  };
+
   return (
     <div className="artwork-card" onClick={handleCardClick}>
       <div className="artwork-card-header">
         <div className="artist-avatar">
-          <img src={artistAvatar} alt={artistName} />
+          <LazyImage src={artistAvatar} alt={artistName} />
         </div>
-        <div className="artist-name">{artistName}</div>
+        <div 
+          className="artist-name" 
+          onClick={handleArtistClick}
+          style={{ cursor: artistId ? 'pointer' : 'default' }}
+        >
+          {artistName}
+        </div>
       </div>
 
       <div className="artwork-image-container">
-        <img src={artworkImage} alt={description} className="artwork-image" />
+        <LazyImage src={artworkImage} alt={description} className="artwork-image" />
       </div>
 
       <div className="artwork-description">
@@ -64,8 +92,8 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
 
       <div className="artwork-actions">
         <button
-          className={`action-icon ${isSaved ? 'active' : ''}`}
-          onClick={(e) => handleIconClick(e, onSave)}
+          className={`action-icon ${isSaved ? 'active' : ''} ${isAnimating ? 'animating' : ''}`}
+          onClick={handleSaveClick}
           aria-label="Save to favorites"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill={isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">

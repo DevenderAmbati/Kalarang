@@ -24,7 +24,7 @@ export interface ProfileData {
   achievements: string[];
   exhibitions: Exhibition[];
   education: string[];
-  commissionStatus: 'Open' | 'Closed';
+  commissionStatus?: 'Open' | 'Closed';
   commissionDescription: string;
   commissionCtaText: string;
   links: Link[];

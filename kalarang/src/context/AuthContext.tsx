@@ -6,14 +6,17 @@ import {
   ReactNode,
 } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 import { getUserProfile } from "../services/authService";
 import { AppUser } from "../types/user";
+import { cache, cacheKeys } from "../utils/cache";
 
 interface AuthContextType {
   firebaseUser: User | null;
   appUser: AppUser | null;
   loading: boolean;
+  refreshUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -22,6 +25,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const refreshUserProfile = async () => {
+    if (!firebaseUser) return;
+    
+    try {
+      const profile = await getUserProfile(firebaseUser.uid);
+      setAppUser(profile as AppUser);
+      console.log('[AuthContext] User profile refreshed');
+    } catch (error) {
+      console.error('[AuthContext] Error refreshing user profile:', error);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -74,8 +89,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe;
   }, []);
 
+  // Set up real-time listener for user profile changes
+  useEffect(() => {
+    if (!firebaseUser) return;
+
+    const userDocRef = doc(db, "users", firebaseUser.uid);
+    const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        const updatedUser = {
+          uid: snapshot.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+        } as AppUser;
+        
+        setAppUser(updatedUser);
+        console.log('[AuthContext] User profile updated via listener');
+        
+        // Invalidate artwork caches to refetch with new avatar
+        cache.invalidate(cacheKeys.artworks(20));
+        cache.invalidate(cacheKeys.artworks(50));
+        if (firebaseUser.uid) {
+          cache.invalidate(cacheKeys.favoriteArtworks(firebaseUser.uid));
+          cache.invalidate(cacheKeys.publishedWorks(firebaseUser.uid));
+          cache.invalidate(cacheKeys.galleryWorks(firebaseUser.uid));
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [firebaseUser]);
+
   return (
-    <AuthContext.Provider value={{ firebaseUser, appUser, loading }}>
+    <AuthContext.Provider value={{ firebaseUser, appUser, loading, refreshUserProfile }}>
       {children}
     </AuthContext.Provider>
   );

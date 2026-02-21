@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getArtistArtworks } from '../../services/artworkService';
 import { saveArtworkToFavorites, removeArtworkFromFavorites, isArtworkInFavorites } from '../../services/interactionService';
 import { Artwork } from '../../types/artwork';
 import ArtworkGrid from '../../components/Artwork/ArtworkGrid';
@@ -9,16 +8,41 @@ import LoadingState from '../../components/State/LoadingState';
 import ConfirmModal from '../../components/Modals/ConfirmModal';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { usePublishedWorks, useFavorites, UseCachedDataResult } from '../../hooks/useCachedData';
+import { cache, cacheKeys } from '../../utils/cache';
 import noContentAnimation from '../../animations/no content.json';
 import lineArt2Animation from '../../animations/Line art (2).json';
 import './PublishedWorks.css';
 
-const PublishedWorks: React.FC = () => {
+interface PublishedWorksProps {
+  cachedData?: UseCachedDataResult<Artwork[]>;
+  onAddToStory?: (id: string) => void;
+  artworkIdsInStories?: Set<string>;
+}
+
+const PublishedWorks: React.FC<PublishedWorksProps> = ({ cachedData, onAddToStory, artworkIdsInStories = new Set() }) => {
   const { appUser } = useAuth();
   const navigate = useNavigate();
-  const [artworks, setArtworks] = useState<Artwork[]>([]);
+  
+  // Use provided cached data or fetch if not provided
+  const ownData = usePublishedWorks(appUser?.uid, !cachedData);
+  const { data: artworks, isLoading, refetch, updateCache } = cachedData || ownData;
+  
+  const { data: favoriteIds, updateCache: updateFavoritesCache, refetch: refetchFavorites } = useFavorites(appUser?.uid);
   const [savedArtworks, setSavedArtworks] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+
+  // Listen for favorites changes from other components
+  useEffect(() => {
+    const handleFavoritesChanged = ((e: CustomEvent) => {
+      if (e.detail.userId === appUser?.uid) {
+        console.log('[PublishedWorks] Favorites changed in another component, refetching...');
+        refetchFavorites();
+      }
+    }) as EventListener;
+    
+    window.addEventListener('favorites-changed', handleFavoritesChanged);
+    return () => window.removeEventListener('favorites-changed', handleFavoritesChanged);
+  }, [appUser?.uid, refetchFavorites]);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     type: 'delete' | 'sold';
@@ -30,38 +54,13 @@ const PublishedWorks: React.FC = () => {
   });
 
   useEffect(() => {
-    loadPublishedWorks();
-  }, [appUser]);
-
-  const loadPublishedWorks = async () => {
-    if (!appUser) return;
-
-    try {
-      setLoading(true);
-      const fetchedArtworks = await getArtistArtworks(appUser.uid, true); // Only published
-      setArtworks(fetchedArtworks);
-
-      // Load saved artworks
-      const savedSet = new Set<string>();
-      const saveChecks = await Promise.all(
-        fetchedArtworks.map(artwork => isArtworkInFavorites(appUser.uid, artwork.id))
-      );
-      
-      fetchedArtworks.forEach((artwork, index) => {
-        if (saveChecks[index]) {
-          savedSet.add(artwork.id);
-        }
-      });
-
-      setSavedArtworks(savedSet);
-    } catch (error) {
-      console.error('Error loading published works:', error);
-    } finally {
-      setLoading(false);
+    if (favoriteIds) {
+      setSavedArtworks(new Set(favoriteIds));
     }
-  };
+  }, [favoriteIds, appUser]);
 
   const handleArtworkClick = (id: string) => {
+    sessionStorage.setItem('artworkSourceRoute', '/portfolio');
     navigate(`/card/${id}`);
   };
 
@@ -77,12 +76,37 @@ const PublishedWorks: React.FC = () => {
     });
   };
 
-  const handleMarkAsSold = (id: string) => {
-    setConfirmModal({
-      isOpen: true,
-      type: 'sold',
-      artworkId: id,
+  const handleMarkAsSold = async (id: string) => {
+    if (!appUser) return;
+
+    // Get current sold status
+    const currentArtwork = artworks?.find(a => a.id === id);
+    const currentSoldStatus = currentArtwork?.sold || false;
+    const newSoldStatus = !currentSoldStatus;
+
+    // Optimistic update - toggle sold status immediately
+    const previousData = artworks;
+    
+    updateCache((oldData) => {
+      if (!oldData) return oldData;
+      return oldData.map(artwork => 
+        artwork.id === id 
+          ? { ...artwork, sold: newSoldStatus }
+          : artwork
+      );
     });
+    
+    toast.success(newSoldStatus ? 'Artwork marked as sold' : 'Sold tag removed');
+    
+    try {
+      const { updateArtwork } = await import('../../services/artworkService');
+      await updateArtwork(id, { sold: newSoldStatus });
+    } catch (error) {
+      // Revert on error
+      updateCache(() => previousData);
+      console.error('Error updating sold status:', error);
+      toast.error('Failed to update sold status. Please try again.');
+    }
   };
 
   const handleSave = async (id: string) => {
@@ -93,21 +117,53 @@ const PublishedWorks: React.FC = () => {
 
     const isSaved = savedArtworks.has(id);
 
+    // Optimistic update - update UI immediately
+    const previousFavorites = favoriteIds || [];
+    setSavedArtworks(prev => {
+      const newSet = new Set(prev);
+      if (isSaved) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+    
+    updateFavoritesCache((oldFavorites) => {
+      const favorites = oldFavorites || [];
+      if (isSaved) {
+        return favorites.filter(favId => favId !== id);
+      } else {
+        return [...favorites, id];
+      }
+    });
+
     try {
       if (isSaved) {
         await removeArtworkFromFavorites(appUser.uid, id);
-        setSavedArtworks(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(id);
-          return newSet;
-        });
         toast.success('Removed from favorites');
       } else {
         await saveArtworkToFavorites(appUser.uid, id);
-        setSavedArtworks(prev => new Set(prev).add(id));
-        toast.success('Saved to favorites');
+        toast.success('Saved to your favourites');
       }
+      // Invalidate favorite artworks cache
+      cache.invalidate(cacheKeys.favoriteArtworks(appUser.uid));
+      cache.invalidate(cacheKeys.favorites(appUser.uid));
+      
+      // Broadcast change to other components
+      window.dispatchEvent(new CustomEvent('favorites-changed', { detail: { userId: appUser.uid } }));
     } catch (error) {
+      // Revert on error
+      setSavedArtworks(prev => {
+        const newSet = new Set(prev);
+        if (isSaved) {
+          newSet.add(id); // Revert: add back
+        } else {
+          newSet.delete(id); // Revert: remove
+        }
+        return newSet;
+      });
+      updateFavoritesCache(() => previousFavorites);
       console.error('Error toggling save:', error);
       toast.error('Failed to update favorites');
     }
@@ -116,19 +172,37 @@ const PublishedWorks: React.FC = () => {
   const handleConfirmAction = async () => {
     const { artworkId, type } = confirmModal;
 
-    try {
-      if (type === 'delete') {
+    if (type === 'delete') {
+      // Optimistic update for delete
+      const previousData = artworks;
+      
+      // Update UI immediately
+      updateCache((oldData) => {
+        if (!oldData) return oldData;
+        return oldData.filter(artwork => artwork.id !== artworkId);
+      });
+      
+      handleCloseModal();
+      
+      try {
         const { deleteArtwork } = await import('../../services/artworkService');
         await deleteArtwork(artworkId);
-      } else if (type === 'sold') {
-        const { updateArtwork } = await import('../../services/artworkService');
-        await updateArtwork(artworkId, { sold: true });
+        
+        // Show success toast only after actual deletion succeeds
+        toast.success('Artwork deleted successfully');
+        
+        // Invalidate gallery cache as well since artwork is deleted completely
+        if (appUser) {
+          console.log('[Cache] Invalidating all portfolio cache after delete');
+          cache.invalidate(cacheKeys.galleryWorks(appUser.uid));
+          cache.invalidate(cacheKeys.artistWorks(appUser.uid));
+        }
+      } catch (error) {
+        // Revert on error
+        updateCache(() => previousData);
+        console.error('Error deleting artwork:', error);
+        toast.error('Failed to delete artwork. Please try again.');
       }
-      // Reload the artworks after action
-      loadPublishedWorks();
-    } catch (error) {
-      console.error(`Error ${type === 'delete' ? 'deleting' : 'marking as sold'} artwork:`, error);
-      alert(`Failed to ${type === 'delete' ? 'delete' : 'mark as sold'} artwork. Please try again.`);
     }
   };
 
@@ -140,7 +214,7 @@ const PublishedWorks: React.FC = () => {
     });
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="published-works-wrapper">
         <div className="published-works-container">
@@ -158,7 +232,7 @@ const PublishedWorks: React.FC = () => {
     <div className="published-works-wrapper">
       <div className="published-works-container">
         <div className="published-works-content">
-          {artworks.length === 0 ? (
+          {!artworks || artworks.length === 0 ? (
             <EmptyState
               animation={noContentAnimation}
               title="Ready to Publish?"
@@ -174,6 +248,7 @@ const PublishedWorks: React.FC = () => {
                 artworkImage: artwork.images[0],
                 artistName: artwork.artistName,
                 artistAvatar: artwork.artistAvatar || '',
+                artistId: artwork.artistId,
                 price: artwork.price,
                 sold: artwork.sold,
               }))}
@@ -184,6 +259,9 @@ const PublishedWorks: React.FC = () => {
               onMarkAsSold={handleMarkAsSold}
               onSave={handleSave}
               savedArtworks={savedArtworks}
+              onAddToStory={onAddToStory}
+              artworkIdsInStories={artworkIdsInStories}
+              currentUserId={appUser?.uid}
             />
           )}
         </div>

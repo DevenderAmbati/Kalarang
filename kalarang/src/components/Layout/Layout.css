@@ -11,10 +11,24 @@
 .layout-header {
   background: var(--color-bg-white);
   transition: background-color var(--transition-base);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
 }
 
 .layout-header .header-right > div:hover {
   color: var(--color-hover) !important;
+}
+
+/* ============================================
+   SMOOTH SCROLLING FOR ALL CONTENT
+   ============================================ */
+
+.layout-main-content {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
 }
 
 /* ============================================
@@ -31,13 +45,21 @@
   /* Adjust main content area for mobile */
   .layout-main-content {
     margin-left: 0 !important;
-    max-height: calc(100vh - 65px); /* Prevent scrollbar from extending behind nav */
-    overflow-y: auto; /* Enable scrolling within the content area */
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
   }
 
   /* Adjust header for mobile */
   .layout-header {
     padding: 0.75rem 1rem !important;
+    position: fixed;
+    width: 100%;
   }
 
   .layout-header h1 {
@@ -54,6 +76,7 @@
 @media (min-width: 640px) {
   .layout-main-content {
     padding-bottom: 0;
+    scroll-behavior: smooth;
   }
 }
 

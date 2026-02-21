@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import CollapsedSidebar from './CollapsedSidebar';
 import BottomNav from './BottomNav';
@@ -10,22 +10,55 @@ import { FaUserCircle } from 'react-icons/fa';
 import './Layout.css';
 
 interface LayoutProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   onLogout: () => void;
   pageTitle?: string;
+  // New props for persistent mounting
+  homeFeedComponent?: React.ReactNode;
+  discoverComponent?: React.ReactNode;
+  favouritesComponent?: React.ReactNode;
 }
 
 const handleLogout = async () => {
   await logout();
 };
 
-const Layout: React.FC<LayoutProps> = ({ children, onLogout, pageTitle = 'Dashboard' }) => {
+const Layout: React.FC<LayoutProps> = ({ 
+  children, 
+  onLogout, 
+  pageTitle = 'Dashboard',
+  homeFeedComponent,
+  discoverComponent,
+  favouritesComponent
+}) => {
   const { isCollapsed, toggleSidebar } = useSidebar();
   const { appUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleProfileClick = () => {
     navigate('/profile');
+  };
+
+  // Detect which route is active
+  const isHomeFeedActive = location.pathname === '/home';
+  const isDiscoverActive = location.pathname === '/discover';
+  const isFavouritesActive = location.pathname === '/favourites';
+  const isArtworkDetail = location.pathname.startsWith('/card/');
+  
+  // Determine if we're in persistent mounting mode (feed pages)
+  const isPersistentMode = homeFeedComponent && discoverComponent && favouritesComponent;
+  
+  // Show persistent pages for /home, /discover, /favourites, and when viewing artwork detail
+  const showPersistentPages = isPersistentMode && (isHomeFeedActive || isDiscoverActive || isFavouritesActive || isArtworkDetail);
+
+  // Determine page title based on route
+  const getPageTitle = () => {
+    if (isHomeFeedActive) return 'Home';
+    if (isDiscoverActive) return 'Discover';
+    if (isFavouritesActive) return 'Favourites';
+    if (isArtworkDetail) return 'Artwork';
+    return pageTitle;
   };
   
   return (
@@ -45,20 +78,46 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, pageTitle = 'Dashbo
         {/* Header with Page Title */}
         <div className="layout-header" style={styles.header}>
           <div className="header-left" style={styles.headerLeft}>
-            <h1 style={styles.pageTitle}>{pageTitle}</h1>
+            <h1 style={styles.pageTitle}>{getPageTitle()}</h1>
           </div>
           <div className="header-right" style={styles.headerRight}>
             {appUser?.role === 'artist' && (
               <div onClick={handleProfileClick} style={styles.profileIcon} className="layout-profile-icon">
-                <img src="/artist.png" alt="Artist Profile" style={styles.profileImage} />
+                <img src={appUser.avatar || '/artist.png'} alt="Artist Profile" style={styles.profileImage} />
               </div>
             )}
           </div>
         </div>
         <div style={styles.contentWrapper}>
-          <div style={styles.content}>
-            {children}
-          </div>
+          {showPersistentPages ? (
+            <>
+              {/* HomeFeed - Independent scroll container */}
+              <div style={isHomeFeedActive && !isArtworkDetail ? styles.feedScrollContainer : styles.feedScrollContainerHidden}>
+                {homeFeedComponent}
+              </div>
+              
+              {/* Discover - Independent scroll container */}
+              <div style={isDiscoverActive && !isArtworkDetail ? styles.feedScrollContainer : styles.feedScrollContainerHidden}>
+                {discoverComponent}
+              </div>
+              
+              {/* Favourites - Independent scroll container */}
+              <div style={isFavouritesActive && !isArtworkDetail ? styles.feedScrollContainer : styles.feedScrollContainerHidden}>
+                {favouritesComponent}
+              </div>
+              
+              {/* ArtworkDetail - Independent scroll container */}
+              {isArtworkDetail && (
+                <div style={styles.artworkDetailScrollContainer}>
+                  {children}
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={styles.standardScrollContainer}>
+              {children}
+            </div>
+          )}
         </div>
       </main>
       {/* Mobile Bottom Navigation - Only visible on mobile devices */}
@@ -70,7 +129,7 @@ const Layout: React.FC<LayoutProps> = ({ children, onLogout, pageTitle = 'Dashbo
 const styles = {
   container: {
     display: 'flex',
-    minHeight: '100vh',
+    minHeight: '0',
   },
   header: {
     display: 'flex',
@@ -80,9 +139,11 @@ const styles = {
     background: 'linear-gradient(90deg, #E8F4F5 0%, #c1f8fdff 100%)',
     borderBottom: '1px solid rgba(47, 164, 169, 0.2)',
     boxShadow: '0 4px 16px rgba(47, 164, 169, 0.15)',
-    position: 'sticky',
+    position: 'fixed',
     top: 0,
-    zIndex: 10,
+    left: 0,
+    right: 0,
+    zIndex: 100,
   } as React.CSSProperties,
   headerLeft: {
     display: 'flex',
@@ -124,20 +185,103 @@ const styles = {
     marginLeft: '260px',
     flex: 1,
     backgroundColor: 'var(--color-bg-light)',
-    height: '100vh',
+    height: '100dvh',
+    maxHeight: '100dvh',
     transition: 'margin-left 0.3s ease',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
+    position: 'relative',
+    transform: 'translateZ(0)',
+    backfaceVisibility: 'hidden',
   } as React.CSSProperties,
   contentWrapper: {
     flex: 1,
-    overflowY: 'auto',
-    overflowX: 'hidden',
+    overflow: 'hidden',
+    position: 'relative',
   } as React.CSSProperties,
   content: {
     padding: '0.5rem',
-    paddingBottom: '65px', // Match bottom nav height exactly
+    height: '100%',
+    width: '100%',
+    position: 'relative',
+  } as React.CSSProperties,
+  standardScrollContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    scrollBehavior: 'smooth',
+    WebkitOverflowScrolling: 'touch',
+    padding: '72px 0.5rem 75px',
+  } as React.CSSProperties,
+  feedScrollContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    scrollBehavior: 'smooth',
+    WebkitOverflowScrolling: 'touch',
+    visibility: 'visible',
+    opacity: 1,
+    transition: 'opacity 0.2s ease-in-out',
+    padding: '72px 0.5rem 75px',
+  } as React.CSSProperties,
+  feedScrollContainerHidden: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    visibility: 'hidden',
+    opacity: 0,
+    pointerEvents: 'none',
+    transition: 'opacity 0.2s ease-in-out, visibility 0s linear 0.2s',
+    padding: '72px 0.5rem 75px',
+  } as React.CSSProperties,
+  artworkDetailScrollContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    scrollBehavior: 'smooth',
+    WebkitOverflowScrolling: 'touch',
+    visibility: 'visible',
+    opacity: 1,
+    pointerEvents: 'auto',
+    transition: 'opacity 0.2s ease-in-out',
+    padding: '72px 0.5rem 75px',
+  } as React.CSSProperties,
+  activePage: {
+    visibility: 'visible',
+    position: 'relative',
+    pointerEvents: 'auto',
+    opacity: 1,
+    zIndex: 1,
+    transition: 'opacity 0.2s ease-in-out',
+    minHeight: '100%',
+  } as React.CSSProperties,
+  inactivePage: {
+    visibility: 'hidden',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    opacity: 0,
+    pointerEvents: 'none',
+    zIndex: 0,
+    transition: 'opacity 0.2s ease-in-out, visibility 0s linear 0.2s',
   } as React.CSSProperties,
 };
 

@@ -1,6 +1,15 @@
 /* Import color palette first */
 @import './colorpalette.css';
 
+/* Smooth Scrolling - Global */
+html {
+  scroll-behavior: smooth;
+  /* Performance optimizations */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 /* Global Base Styles */
 * {
   box-sizing: border-box;
@@ -18,6 +27,12 @@ body {
   background-color: var(--color-bg-light);
   color: var(--color-text-dark);
   line-height: 1.6;
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+  /* GPU acceleration */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
 code {
@@ -121,4 +136,5 @@ input:focus, textarea:focus, select:focus {
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-primary) var(--color-bg-light);
+  scroll-behavior: smooth; /* Add smooth scrolling to all elements */
 }

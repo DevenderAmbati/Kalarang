@@ -16,7 +16,7 @@ const BannerCropModal: React.FC<BannerCropModalProps> = ({
   onSave,
   currentBannerUrl,
 }) => {
-  const [imageSrc, setImageSrc] = useState<string | null>(currentBannerUrl || null);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
@@ -37,6 +37,15 @@ const BannerCropModal: React.FC<BannerCropModalProps> = ({
   };
 
   const [aspectRatio] = useState<number>(getAspectRatio());
+
+  // Load current banner when modal opens
+  React.useEffect(() => {
+    if (isOpen && currentBannerUrl) {
+      setImageSrc(currentBannerUrl);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+    }
+  }, [isOpen, currentBannerUrl]);
 
   const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels);

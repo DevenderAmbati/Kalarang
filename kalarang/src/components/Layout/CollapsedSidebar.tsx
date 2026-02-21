@@ -7,6 +7,7 @@ import { BsBriefcaseFill, BsPersonCircle } from 'react-icons/bs';
 import { IconType } from 'react-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { canAccessRoute } from '../../utils/permissions';
 import './CollapsedSidebar.css';
 
 /**
@@ -44,7 +45,18 @@ const CollapsedSidebar: React.FC<CollapsedSidebarProps> = ({ onExpand }) => {
   const iconWrapperRefs = React.useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   // Check if a path is currently active
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    // Direct path match
+    if (location.pathname === path) return true;
+    
+    // If we're on an artwork detail page, check the source route
+    if (location.pathname.startsWith('/card/')) {
+      const sourceRoute = sessionStorage.getItem('artworkSourceRoute');
+      return sourceRoute === path;
+    }
+    
+    return false;
+  };
 
   // All navigation items
   const allNavItems: NavItem[] = [
@@ -56,18 +68,13 @@ const CollapsedSidebar: React.FC<CollapsedSidebarProps> = ({ onExpand }) => {
     { path: '/profile', label: 'Profile', Icon: BsPersonCircle },
   ];
 
-  // Filter navigation items based on user role
-  const navItems = React.useMemo(() => {
-    if (appUser?.role === 'buyer') {
-      // Remove 'post' and 'portfolio' for buyers, keep profile
-      return allNavItems.filter(item => item.path !== '/post' && item.path !== '/portfolio');
-    }
-    // Show all items except profile for artists
-    return allNavItems.filter(item => item.path !== '/profile');
+  // Filter menu items based on permissions
+  const menuItems = React.useMemo(() => {
+    return allNavItems.filter((item: NavItem) => canAccessRoute(appUser?.role, item.path));
   }, [appUser?.role]);
 
   // Find the index of the active item for the wave effect
-  const activeIndex = navItems.findIndex(item => isActive(item.path));
+  const activeIndex = menuItems.findIndex((item: NavItem) => isActive(item.path));
 
   // Force update when active item changes or component mounts
   React.useEffect(() => {
@@ -104,7 +111,7 @@ const CollapsedSidebar: React.FC<CollapsedSidebarProps> = ({ onExpand }) => {
     }
 
     // Get actual position of active icon
-    const activeItem = navItems[activeIndex];
+    const activeItem = menuItems[activeIndex];
     const activeElement = iconWrapperRefs.current[activeItem.path];
     
     let centerY: number;
@@ -207,7 +214,7 @@ const CollapsedSidebar: React.FC<CollapsedSidebarProps> = ({ onExpand }) => {
           </div>
         </div>
 
-        {navItems.map((item, index) => {
+        {menuItems.map((item: NavItem, index: number) => {
           const active = isActive(item.path);
           const hovered = hoveredItem === item.path;
 

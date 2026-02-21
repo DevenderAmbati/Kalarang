@@ -12,6 +12,9 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
+  startAfter,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from "firebase/firestore";
 import {
   ref,
@@ -96,12 +99,21 @@ export async function getArtwork(artworkId: string): Promise<Artwork | null> {
   }
 
   const data = artworkSnap.data();
-  return {
+  const artwork = {
     id: artworkSnap.id,
     ...data,
     createdAt: data.createdAt?.toDate() || new Date(),
     updatedAt: data.updatedAt?.toDate() || new Date(),
   } as Artwork;
+
+  // Fetch current artist avatar from user profile
+  const userDoc = await getDoc(doc(db, "users", artwork.artistId));
+  if (userDoc.exists()) {
+    const userData = userDoc.data();
+    artwork.artistAvatar = userData.avatar || '/artist.png';
+  }
+
+  return artwork;
 }
 
 /**
@@ -129,7 +141,7 @@ export async function getArtistArtworks(
   }
 
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map((doc) => {
+  const artworks = querySnapshot.docs.map((doc) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -138,6 +150,16 @@ export async function getArtistArtworks(
       updatedAt: data.updatedAt?.toDate() || new Date(),
     } as Artwork;
   });
+
+  // Fetch current artist avatar from user profile
+  const userDoc = await getDoc(doc(db, "users", userId));
+  const currentAvatar = userDoc.exists() ? (userDoc.data().avatar || '/artist.png') : '/artist.png';
+
+  // Update all artworks with current avatar
+  return artworks.map(artwork => ({
+    ...artwork,
+    artistAvatar: currentAvatar
+  }));
 }
 
 /**
@@ -152,7 +174,7 @@ export async function getPublishedArtworks(limitCount: number = 20): Promise<Art
   );
 
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map((doc) => {
+  const artworks = querySnapshot.docs.map((doc) => {
     const data = doc.data();
     return {
       id: doc.id,
@@ -161,6 +183,98 @@ export async function getPublishedArtworks(limitCount: number = 20): Promise<Art
       updatedAt: data.updatedAt?.toDate() || new Date(),
     } as Artwork;
   });
+
+  // Get unique artist IDs
+  const artistIdsSet = new Set<string>();
+  artworks.forEach(a => artistIdsSet.add(a.artistId));
+  const artistIds: string[] = [];
+  artistIdsSet.forEach(id => artistIds.push(id));
+  
+  // Fetch current artist avatars from user profiles
+  const artistAvatars = new Map<string, string>();
+  await Promise.all(
+    artistIds.map(async (artistId) => {
+      const userDoc = await getDoc(doc(db, "users", artistId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        artistAvatars.set(artistId, userData.avatar || '/artist.png');
+      }
+    })
+  );
+
+  // Update artworks with current artist avatars
+  return artworks.map(artwork => ({
+    ...artwork,
+    artistAvatar: artistAvatars.get(artwork.artistId) || artwork.artistAvatar || '/artist.png'
+  }));
+}
+
+/**
+ * Get paginated published artworks for feed with cursor
+ */
+export async function getPublishedArtworksPaginated(
+  limitCount: number = 20,
+  lastVisible?: QueryDocumentSnapshot<DocumentData> | null
+): Promise<{ artworks: Artwork[], lastVisible: QueryDocumentSnapshot<DocumentData> | null, hasMore: boolean }> {
+  let q;
+  
+  if (lastVisible) {
+    q = query(
+      collection(db, "artworks"),
+      where("published", "==", true),
+      orderBy("createdAt", "desc"),
+      startAfter(lastVisible),
+      limit(limitCount)
+    );
+  } else {
+    q = query(
+      collection(db, "artworks"),
+      where("published", "==", true),
+      orderBy("createdAt", "desc"),
+      limit(limitCount)
+    );
+  }
+
+  const querySnapshot = await getDocs(q);
+  const artworks = querySnapshot.docs.map((doc) => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
+    } as Artwork;
+  });
+
+  // Get unique artist IDs
+  const artistIdsSet = new Set<string>();
+  artworks.forEach(a => artistIdsSet.add(a.artistId));
+  const artistIds: string[] = [];
+  artistIdsSet.forEach(id => artistIds.push(id));
+  
+  // Fetch current artist avatars from user profiles
+  const artistAvatars = new Map<string, string>();
+  await Promise.all(
+    artistIds.map(async (artistId) => {
+      const userDoc = await getDoc(doc(db, "users", artistId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        artistAvatars.set(artistId, userData.avatar || '/artist.png');
+      }
+    })
+  );
+
+  // Update artworks with current artist avatars
+  const updatedArtworks = artworks.map(artwork => ({
+    ...artwork,
+    artistAvatar: artistAvatars.get(artwork.artistId) || artwork.artistAvatar || '/artist.png'
+  }));
+
+  return {
+    artworks: updatedArtworks,
+    lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1] || null,
+    hasMore: querySnapshot.docs.length === limitCount
+  };
 }
 
 /**

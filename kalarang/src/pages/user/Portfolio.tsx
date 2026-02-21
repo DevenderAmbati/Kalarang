@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout/Layout';
 import ProfileHeader from '../../components/Profile/ProfileHeader';
 import AboutTab from '../../components/Profile/AboutTab';
@@ -8,12 +8,60 @@ import Gallery from './Gallery';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
+import { PortfolioProvider } from '../../context/PortfolioContext';
+import { usePublishedWorks, useGalleryWorks } from '../../hooks/useCachedData';
+import { getUserProfile, updateUserBanner, updateUserAvatar, updateUserProfile } from '../../services/userService';
+import { toast } from 'react-toastify';
+import { Artwork } from '../../types/artwork';
+import { createStory, getUserStories } from '../../services/storyService';
+import '../../components/Artwork/ArtworkGridCard.css'; // Import for story modal styles
 
 const Portfolio: React.FC = () => {
   const navigate = useNavigate();
-  const { appUser } = useAuth();
+  const { appUser, refreshUserProfile } = useAuth();
   const [activeTab, setActiveTab] = useState('published');
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [storyArtwork, setStoryArtwork] = useState<Artwork | null>(null);
+  const [artworkIdsInStories, setArtworkIdsInStories] = useState<Set<string>>(new Set());
+  
+  // Fetch data at Portfolio level to persist across tab switches
+  const publishedWorksData = usePublishedWorks(appUser?.uid);
+  const galleryWorksData = useGalleryWorks(appUser?.uid);
+
+  // Load user's active stories to check which artworks are already in stories
+  useEffect(() => {
+    const loadUserStories = async () => {
+      if (!appUser?.uid) return;
+      
+      try {
+        const userStories = await getUserStories(appUser.uid);
+        const artworkIds = new Set(userStories.map(story => story.artworkId));
+        setArtworkIdsInStories(artworkIds);
+      } catch (error) {
+        console.error('Error loading user stories:', error);
+      }
+    };
+
+    loadUserStories();
+  }, [appUser?.uid]);
+
+  // Load user's active stories to check which artworks are already in stories
+  useEffect(() => {
+    const loadUserStories = async () => {
+      if (!appUser?.uid) return;
+      
+      try {
+        const userStories = await getUserStories(appUser.uid);
+        const artworkIds = new Set(userStories.map(story => story.artworkId));
+        setArtworkIdsInStories(artworkIds);
+      } catch (error) {
+        console.error('Error loading user stories:', error);
+      }
+    };
+
+    loadUserStories();
+  }, [appUser?.uid]);
 
   const handleLogout = async () => {
     await logout();
@@ -38,8 +86,52 @@ const Portfolio: React.FC = () => {
     }
   };
 
-  // Mock user data - in real app, this would come from appUser or API
-  const mockUser = {
+  const handleAddToStory = (id: string) => {
+    const artwork = publishedWorksData.data?.find((a: Artwork) => a.id === id);
+    if (artwork) {
+      setStoryArtwork(artwork);
+    }
+  };
+
+  const handleCloseStory = () => {
+    setStoryArtwork(null);
+  };
+
+  const handleShareStory = async () => {
+    if (!storyArtwork || !appUser) return;
+
+    try {
+      await createStory(
+        storyArtwork.id,
+        appUser.uid,
+        storyArtwork.artistName,
+        storyArtwork.artistAvatar || '',
+        storyArtwork.images[0],
+        storyArtwork.title,
+        storyArtwork.price
+      );
+      
+      toast.success('Story shared successfully!');
+      
+      // Add artwork to the set of artworks in stories
+      setArtworkIdsInStories(prev => new Set(prev).add(storyArtwork.id));
+      
+      setStoryArtwork(null);
+      
+      // Redirect to home feed immediately
+      navigate('/home', { replace: true, state: { storyCreated: true } });
+    } catch (error) {
+      console.error('Error sharing story:', error);
+      toast.error('Failed to share story. Please try again.');
+    }
+  };
+
+  const formatPrice = (price: number) => {
+    return `₹${price.toLocaleString('en-IN')}`;
+  };
+
+  // User data loaded from Firebase
+  const [mockUser, setMockUser] = useState({
     name: appUser?.name || 'Artist Name',
     username: appUser?.username,
     avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=120&h=120&fit=crop&crop=face',
@@ -49,64 +141,196 @@ const Portfolio: React.FC = () => {
       artworks: 89,
       following: 234,
     },
-  };
+  });
+
+  // Load user profile data from Firebase
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      if (!appUser) {
+        setIsLoadingProfile(false);
+        return;
+      }
+
+      try {
+        const profile = await getUserProfile(appUser.uid);
+        if (profile) {
+          setMockUser({
+            name: profile.name || appUser.name,
+            username: profile.username,
+            avatar: profile.avatar || 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=120&h=120&fit=crop&crop=face',
+            bannerImage: profile.bannerImage || '/logo.jpeg',
+            stats: profile.stats || {
+              followers: 0,
+              artworks: 0,
+              following: 0,
+            },
+          });
+
+          // Update profile data state
+          setProfileData(prev => ({
+            ...prev,
+            name: profile.name || appUser.name,
+            avatar: profile.avatar || prev.avatar,
+            bannerImage: profile.bannerImage || prev.bannerImage,
+            bio: profile.bio || '',
+            artStyle: profile.artStyle || [],
+            philosophy: profile.philosophy || '',
+            achievements: profile.achievements || [],
+            exhibitions: profile.exhibitions || [],
+            education: profile.education || [],
+            commissionStatus: profile.commissionStatus,
+            commissionDescription: profile.commissionDescription || '',
+            commissionCtaText: profile.commissionCtaText || 'Get in Touch',
+            links: profile.links || [],
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    loadUserProfile();
+  }, [appUser]);
+
+  // Sync appUser avatar and banner changes to local state
+  useEffect(() => {
+    if (appUser?.avatar) {
+      setProfileData(prev => ({
+        ...prev,
+        avatar: appUser.avatar!
+      }));
+    }
+    if (appUser?.bannerImage) {
+      setProfileData(prev => ({
+        ...prev,
+        bannerImage: appUser.bannerImage!
+      }));
+    }
+  }, [appUser?.avatar, appUser?.bannerImage]);
 
   // Profile data for editing
   const [profileData, setProfileData] = useState<ProfileData>({
     name: mockUser.name,
     avatar: mockUser.avatar,
     bannerImage: mockUser.bannerImage,
-    bio: "Welcome to my creative space! I'm a passionate artist dedicated to bringing imagination to life through various mediums. My work explores the interplay between light and shadow, emotion and form, creating pieces that invite viewers to discover their own interpretations and connections.",
-    artStyle: ["Oil Painting", "Digital Art", "Mixed Media", "Abstract", "Portraiture", "Landscape"],
-    philosophy: "I believe art has the power to connect people across cultures and experiences. Through my work, I aim to create pieces that resonate on both emotional and aesthetic levels, inviting viewers to explore their own interpretations and find personal meaning within each creation.",
-    achievements: [
-      "Winner of the Annual Contemporary Art Award 2024",
-      "Featured Artist in Modern Gallery Exhibition 2023",
-      "Recognition for Outstanding Digital Art Innovation"
-    ],
-    exhibitions: [
-      { year: "2024", title: "Contemporary Visions - Metropolitan Gallery" },
-      { year: "2023", title: "Modern Expressions - Art District Showcase" },
-      { year: "2022", title: "Digital Renaissance - Tech Art Festival" }
-    ],
-    education: [
-      "Master of Fine Arts – School of Aryan",
-      "Bachelor of Fine Arts – School of The Arts"
-    ],
-    commissionStatus: 'Open',
-    commissionDescription: "I'm currently accepting commissions for custom artwork. Let's bring your vision to life!",
+    bio: "",
+    artStyle: [],
+    philosophy: "",
+    achievements: [],
+    exhibitions: [],
+    education: [],
+    commissionStatus: undefined,
+    commissionDescription: "",
     commissionCtaText: "Get in Touch",
-    links: [
-      { label: "Instagram", url: "https://instagram.com/artist", icon: "instagram" },
-      { label: "Portfolio", url: "https://portfolio.com", icon: "portfolio" }
-    ]
+    links: []
   });
 
-  const handleSaveProfile = (data: ProfileData) => {
-    setProfileData(data);
-    setIsEditingProfile(false);
-    // TODO: Here you would save to your backend/database
-    console.log('Saving profile data:', data);
+  const handleSaveProfile = async (data: ProfileData) => {
+    if (!appUser) return;
+
+    try {
+      // Update local state immediately for optimistic UI
+      setProfileData(data);
+      setMockUser(prev => ({
+        ...prev,
+        name: data.name
+      }));
+      setIsEditingProfile(false);
+
+      // Save to Firebase - filter out undefined values
+      const updateData: any = {
+        name: data.name,
+        bio: data.bio,
+        artStyle: data.artStyle,
+        philosophy: data.philosophy,
+        achievements: data.achievements,
+        exhibitions: data.exhibitions,
+        education: data.education,
+        commissionDescription: data.commissionDescription,
+        commissionCtaText: data.commissionCtaText,
+        links: data.links
+      };
+      
+      // Only include commissionStatus if it's defined
+      if (data.commissionStatus !== undefined) {
+        updateData.commissionStatus = data.commissionStatus;
+      }
+      
+      await updateUserProfile(appUser.uid, updateData);
+
+      // Refresh user profile in AuthContext
+      await refreshUserProfile();
+      
+      toast.success('Profile updated successfully!');
+      console.log('Profile saved to Firebase:', data);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast.error('Failed to save profile. Please try again.');
+    }
   };
 
   const handleCancelEdit = () => {
     setIsEditingProfile(false);
   };
 
-  const handleBannerUpdate = (newBannerUrl: string) => {
-    setProfileData(prev => ({
-      ...prev,
-      bannerImage: newBannerUrl
-    }));
-    console.log('Banner updated:', newBannerUrl);
+  const handleBannerUpdate = async (newBannerBlobUrl: string) => {
+    if (!appUser) return;
+
+    try {
+      // Show optimistic update
+      setProfileData(prev => ({
+        ...prev,
+        bannerImage: newBannerBlobUrl
+      }));
+      setMockUser(prev => ({
+        ...prev,
+        bannerImage: newBannerBlobUrl
+      }));
+
+      // Upload to Firebase and update database in the background
+      // Don't update UI again to prevent re-rendering
+      await updateUserBanner(appUser.uid, newBannerBlobUrl);
+      
+      // Refresh user profile in AuthContext to update avatar/banner throughout app
+      await refreshUserProfile();
+      
+      toast.success('Banner updated successfully!');
+      console.log('Banner uploaded to Firebase');
+    } catch (error) {
+      console.error('Error updating banner:', error);
+      toast.error('Failed to update banner. Please try again.');
+    }
   };
 
-  const handleAvatarUpdate = (newAvatarUrl: string) => {
-    setProfileData(prev => ({
-      ...prev,
-      avatar: newAvatarUrl
-    }));
-    console.log('Avatar updated:', newAvatarUrl);
+  const handleAvatarUpdate = async (newAvatarBlobUrl: string) => {
+    if (!appUser) return;
+
+    try {
+      // Show optimistic update
+      setProfileData(prev => ({
+        ...prev,
+        avatar: newAvatarBlobUrl
+      }));
+      setMockUser(prev => ({
+        ...prev,
+        avatar: newAvatarBlobUrl
+      }));
+
+      // Upload to Firebase and update database in the background
+      // Don't update UI again to prevent re-rendering
+      await updateUserAvatar(appUser.uid, newAvatarBlobUrl);
+      
+      // Refresh user profile in AuthContext to update avatar throughout app
+      await refreshUserProfile();
+      
+      toast.success('Avatar updated successfully!');
+      console.log('Avatar uploaded to Firebase');
+    } catch (error) {
+      console.error('Error updating avatar:', error);
+      toast.error('Failed to update avatar. Please try again.');
+    }
   };
 
   const tabs = [
@@ -116,94 +340,126 @@ const Portfolio: React.FC = () => {
   ];
 
   const renderTabContent = () => {
-    switch (activeTab) {
-      case 'about':
-        return <AboutTab 
-          bio={profileData.bio}
-          artStyle={profileData.artStyle}
-          philosophy={profileData.philosophy}
-          achievements={profileData.achievements}
-          exhibitions={profileData.exhibitions}
-          education={profileData.education}
-          commissions={{
-            status: profileData.commissionStatus,
-            description: profileData.commissionDescription,
-            ctaText: profileData.commissionCtaText
-          }}
-          links={profileData.links}
-        />;
-      case 'published':
-        return <PublishedWorks />;
-      case 'gallery':
-        return <Gallery />;
-      default:
-        return <AboutTab 
-          bio={profileData.bio}
-          artStyle={profileData.artStyle}
-          philosophy={profileData.philosophy}
-          achievements={profileData.achievements}
-          exhibitions={profileData.exhibitions}
-          education={profileData.education}
-          commissions={{
-            status: profileData.commissionStatus,
-            description: profileData.commissionDescription,
-            ctaText: profileData.commissionCtaText
-          }}
-          links={profileData.links}
-        />;
-    }
+    // Render all tabs but hide inactive ones to prevent remounting
+    return (
+      <>
+        <div style={{ display: activeTab === 'about' ? 'block' : 'none' }}>
+          <AboutTab 
+            bio={profileData.bio}
+            artStyle={profileData.artStyle}
+            philosophy={profileData.philosophy}
+            achievements={profileData.achievements}
+            exhibitions={profileData.exhibitions}
+            education={profileData.education}
+            commissions={{
+              status: profileData.commissionStatus,
+              description: profileData.commissionDescription,
+              ctaText: profileData.commissionCtaText
+            }}
+            links={profileData.links}
+          />
+        </div>
+        <div style={{ display: activeTab === 'published' ? 'block' : 'none' }}>
+          <PublishedWorks 
+            cachedData={publishedWorksData}
+            onAddToStory={handleAddToStory}
+            artworkIdsInStories={artworkIdsInStories}
+          />
+        </div>
+        <div style={{ display: activeTab === 'gallery' ? 'block' : 'none' }}>
+          <Gallery 
+            cachedData={galleryWorksData}
+          />
+        </div>
+      </>
+    );
   };
 
   return (
     <Layout onLogout={handleLogout} pageTitle="Portfolio">
-      <div style={styles.container}>
-        <div style={styles.content}>
-          <ProfileHeader
-            user={{
-              name: profileData.name,
-              username: mockUser.username,
-              avatar: profileData.avatar,
-              bannerImage: profileData.bannerImage,
-              stats: mockUser.stats
-            }}
-            onEditProfile={handleEditProfile}
-            onShareProfile={handleShareProfile}
-            onBannerUpdate={handleBannerUpdate}
-            onAvatarUpdate={handleAvatarUpdate}
-            isOwner={true}
-          />
-          
-          <div style={styles.tabSection}>
-            <div style={styles.tabContainer}>
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  style={{
-                    ...styles.tabButton,
-                    ...(activeTab === tab.id ? styles.activeTabButton : {}),
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+      <PortfolioProvider>
+        <div style={styles.container}>
+          <div style={styles.content}>
+            <ProfileHeader
+              user={{
+                name: profileData.name,
+                username: mockUser.username,
+                avatar: profileData.avatar,
+                bannerImage: profileData.bannerImage,
+                stats: mockUser.stats
+              }}
+              onEditProfile={handleEditProfile}
+              onShareProfile={handleShareProfile}
+              onBannerUpdate={handleBannerUpdate}
+              onAvatarUpdate={handleAvatarUpdate}
+              isOwner={true}
+            />
             
-            <div style={styles.tabContent}>
-              {renderTabContent()}
+            <div style={styles.tabSection}>
+              <div style={styles.tabContainer}>
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    style={{
+                      ...styles.tabButton,
+                      ...(activeTab === tab.id ? styles.activeTabButton : {}),
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              
+              <div style={styles.tabContent}>
+                {renderTabContent()}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Edit Profile Modal */}
-      {isEditingProfile && (
-        <EditProfile
-          profileData={profileData}
-          onSave={handleSaveProfile}
-          onCancel={handleCancelEdit}
-        />
-      )}
+        {/* Edit Profile Modal */}
+        {isEditingProfile && (
+          <EditProfile
+            profileData={profileData}
+            onSave={handleSaveProfile}
+            onCancel={handleCancelEdit}
+          />
+        )}
+
+        {/* Story Modal */}
+        {storyArtwork && (
+          <div className="story-fullscreen" onClick={handleCloseStory}>
+            <div className="story-fullscreen-content" onClick={(e) => e.stopPropagation()}>
+              <button className="story-close-btn" onClick={handleCloseStory}>
+                ✕
+              </button>
+              <div className="story-image-wrapper">
+                <img 
+                  src={storyArtwork.images[0]} 
+                  alt={storyArtwork.title} 
+                  className="story-fullscreen-image"
+                />
+                <div className="story-price">{formatPrice(storyArtwork.price)}</div>
+              </div>
+              <div className="story-fullscreen-info">
+                <img src={storyArtwork.artistAvatar || ''} alt={storyArtwork.artistName} className="story-fullscreen-avatar" />
+                <span className="story-fullscreen-name">{storyArtwork.artistName}</span>
+              </div>
+              <div className="story-fullscreen-actions">
+                <div className="story-buttons">
+                  <button className="story-btn story-btn-secondary" onClick={handleCloseStory}>
+                    Cancel
+                  </button>
+                  <button className="story-btn story-btn-primary" onClick={handleShareStory}>
+                    Share
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </PortfolioProvider>
     </Layout>
   );
 };
@@ -215,7 +471,8 @@ const styles = {
   content: {
     maxWidth: '1200px',
     margin: '0 auto',
-    padding: '0 0.5rem',
+    padding: '0 0rem',
+    justifyContent: 'center',
   },
   tabSection: {
     marginTop: '1.5rem',
@@ -227,7 +484,7 @@ const styles = {
     borderBottom: '1px solid var(--color-border)',
     marginBottom: '2rem',
     gap: '0',
-    overflowX: 'auto' as const,
+    overflowX: 'hidden' as const,
     paddingBottom: '0',
     '@media (min-width: 640px) and (max-width: 1023px)': {
       gap: '0.25rem',
