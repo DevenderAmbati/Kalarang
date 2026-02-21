@@ -27,6 +27,7 @@ export interface ArtworkGridProps {
   onAddToStory?: (id: string) => void;
   artworkIdsInStories?: Set<string>;
   currentUserId?: string;
+  viewType?: 'homefeed' | 'discover' | 'published' | 'favourites';
 }
 
 const ArtworkGrid: React.FC<ArtworkGridProps> = ({ 
@@ -40,7 +41,8 @@ const ArtworkGrid: React.FC<ArtworkGridProps> = ({
   savedArtworks,
   onAddToStory,
   artworkIdsInStories = new Set(),
-  currentUserId
+  currentUserId,
+  viewType
 }) => {
   const [screenWidth, setScreenWidth] = useState(window.innerWidth);
 
@@ -56,7 +58,9 @@ const ArtworkGrid: React.FC<ArtworkGridProps> = ({
     if (screenWidth >= 1440) return 4;
     if (screenWidth >= 1024) return 3;
     if (screenWidth >= 640) return 2;
-    return 1;
+    // Mobile view: 1 column for homefeed, 2 columns for others
+    if (viewType === 'homefeed') return 1;
+    return 2;
   };
 
   const columnCount = getColumnCount();
@@ -90,7 +94,7 @@ const ArtworkGrid: React.FC<ArtworkGridProps> = ({
   // Fallback for small lists
   if (artworks.length < 20) {
     return (
-      <div className="artwork-grid">
+      <div className={`artwork-grid ${viewType ? `artwork-grid-${viewType}` : ''}`}>
         {artworks.map((artwork) => (
           <ArtworkGridCard
             key={artwork.id}
@@ -114,7 +118,7 @@ const ArtworkGrid: React.FC<ArtworkGridProps> = ({
   const rowCount = Math.ceil(artworks.length / columnCount);
 
   return (
-    <div className="artwork-grid-virtualized">
+    <div className={`artwork-grid-virtualized ${viewType ? `artwork-grid-${viewType}` : ''}`}>
       <AutoSizer>
         {({ width, height }) => {
           const columnWidth = width / columnCount;

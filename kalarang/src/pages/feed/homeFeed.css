@@ -605,10 +605,10 @@
   }
 }
 
-/* Artwork Grid Section */
-.artwork-grid {
+/* Artwork Grid Section - HomeFeed Specific */
+.homefeed-artwork-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.5rem;
   padding: 1.5rem 1rem;
   margin-top: -1rem;
@@ -616,28 +616,26 @@
 
 /* Tablet */
 @media (min-width: 640px) and (max-width: 1023px) {
-  .artwork-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  .homefeed-artwork-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1rem;
     padding: 1rem 0.75rem;
   }
 }
 
-/* Mobile */
+/* Mobile - Single column for HomeFeed only */
 @media (max-width: 639px) {
-  .artwork-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
-    padding: 1rem 0.75rem;
+  .homefeed-artwork-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 }
 
 /* Spacing and font adjustments for extra small screens */
 @media (max-width: 480px) {
-  .artwork-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 1rem;
-    padding: 1rem 0.5rem;
+  .homefeed-artwork-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 }
 

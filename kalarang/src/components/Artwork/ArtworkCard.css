@@ -110,7 +110,7 @@
 /* Title Section */
 .artwork-title {
   font-weight: bold;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
   color: var(--color-royal);
   margin-bottom: 0.4rem;
   line-height: 1.1;
@@ -126,7 +126,7 @@
 }
 
 .artwork-description p {
-  font-size: 0.65rem !important;
+  font-size: 0.75rem !important;
   color: var(--color-text-dark);
   line-height: 1.5;
   margin-bottom: -3px;
@@ -215,85 +215,5 @@
 }
 
 /* Tablet Responsiveness */
-@media (min-width: 640px) and (max-width: 1023px) {
-  .artwork-card-header {
-    padding: 12px;
-  }
 
-  .artist-avatar {
-    width: 36px;
-    height: 36px;
-  }
 
-  .artist-name {
-    font-size: 0.9rem;
-  }
-
-  .artwork-image-container {
-    padding: 0 8px;
-    margin-bottom: 8px;
-  }
-
-  .artwork-description {
-    padding: 0 12px 12px;
-  }
-
-  .artwork-description p {
-    font-size: 0.6rem !important;
-  }
-
-  .artwork-actions {
-    padding: 10px 12px 12px;
-  }
-
-  .action-icon {
-    padding: 2px;
-  }
-
-  .action-icon svg {
-    width: 18px;
-    height: 18px;
-  }
-}
-
-/* Mobile Responsiveness */
-@media (max-width: 639px) {
-  .artwork-card-header {
-    padding: 12px;
-  }
-
-  .artist-avatar {
-    width: 36px;
-    height: 36px;
-  }
-
-  .artist-name {
-    font-size: 0.9rem;
-  }
-
-  .artwork-image-container {
-    padding: 0 8px;
-    margin-bottom: 8px;
-  }
-
-  .artwork-description {
-    padding: 0 12px 12px;
-  }
-
-  .artwork-description p {
-    font-size: 0.6rem !important;
-  }
-
-  .artwork-actions {
-    padding: 10px 12px 12px;
-  }
-
-  .action-icon {
-    padding: 2px;
-  }
-
-  .action-icon svg {
-    width: 18px;
-    height: 18px;
-  }
-}

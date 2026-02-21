@@ -224,7 +224,7 @@ const Favourites: React.FC = () => {
               fullHeight 
             />
           ) : (displayArtworks && displayArtworks.length > 0) ? (
-            <div className="artwork-grid">
+            <div className="artwork-grid artwork-grid-favourites">
               {displayArtworks.map((artwork) => (
                 <FavoriteArtworkCard
                   key={artwork.id}

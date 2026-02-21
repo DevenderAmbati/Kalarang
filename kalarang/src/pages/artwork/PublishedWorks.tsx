@@ -252,6 +252,7 @@ const PublishedWorks: React.FC<PublishedWorksProps> = ({ cachedData, onAddToStor
                 price: artwork.price,
                 sold: artwork.sold,
               }))}
+              viewType="published"
               onArtworkClick={handleArtworkClick}
               isOwner={true}
               onEdit={handleEdit}

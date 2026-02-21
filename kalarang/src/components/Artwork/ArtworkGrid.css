@@ -1,8 +1,8 @@
 .artwork-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
   gap: 24px;
-  width: 100%;
+  width: auto !important;
   /* Performance optimizations */
   contain: layout style;
   content-visibility: auto;
@@ -38,5 +38,17 @@
   .artwork-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
+  }
+
+  /* HomeFeed: 1 column on mobile */
+  .artwork-grid-homefeed {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Discover, Published, Favourites: 2 columns on mobile (default) */
+  .artwork-grid-discover,
+  .artwork-grid-published,
+  .artwork-grid-favourites {
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 }

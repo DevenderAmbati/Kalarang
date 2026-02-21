@@ -593,7 +593,8 @@ const Discover: React.FC = () => {
                   artistId: artwork.artistId,
                   price: artwork.price,
                   sold: artwork.sold,
-                }))} 
+                }))}
+                viewType="discover"
                 onArtworkClick={handleArtworkClick}
                 onSave={handleSave}
                 savedArtworks={savedArtworks}

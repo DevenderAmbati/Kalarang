@@ -701,7 +701,7 @@ const HomeFeed: React.FC = () => {
           <>
             {artworks.length < 20 ? (
               // Regular rendering for small lists
-              <div className="artwork-grid">
+              <div className="homefeed-artwork-grid">
                 {artworks.map((artwork) => (
                   <ArtworkCard
                     key={artwork.id}
@@ -733,6 +733,7 @@ const HomeFeed: React.FC = () => {
                   price: artwork.price,
                   sold: artwork.sold,
                 }))}
+                viewType="homefeed"
                 savedArtworks={savedArtworks}
                 onArtworkClick={handleArtworkClick}
                 onSave={handleSave}
