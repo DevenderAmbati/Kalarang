@@ -47,8 +47,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
     // Direct path match
     if (location.pathname === path) return true;
     
-    // If we're on an artwork detail page, check the source route
-    if (location.pathname.startsWith('/card/')) {
+    // Check if viewing other user's portfolio or artwork detail - preserve source route
+    if (location.pathname.startsWith('/portfolio/') || location.pathname.startsWith('/card/')) {
       const sourceRoute = sessionStorage.getItem('artworkSourceRoute');
       return sourceRoute === path;
     }

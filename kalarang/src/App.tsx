@@ -15,6 +15,7 @@ import HomeFeed from "./pages/feed/HomeFeed";
 import Discover from "./pages/feed/Discover";
 import Favourites from "./pages/user/Favourites";
 import Portfolio from "./pages/user/Portfolio";
+import OtherUserPortfolio from "./pages/user/OtherUserPortfolio";
 import Profile from "./pages/user/Profile";
 import CardDetail from "./pages/artwork/CardDetail";
 import CreateUsername from "./pages/auth/CreateUsername";
@@ -32,6 +33,24 @@ import BuyerLanding from "./pages/landing/BuyerLanding";
 
 // Persistent Feed Container Component
 const PersistentFeedContainer: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  return (
+    <Layout 
+      onLogout={handleLogout}
+      homeFeedComponent={<HomeFeed />}
+      discoverComponent={<Discover />}
+      favouritesComponent={<Favourites />}
+    >
+      {children}
+    </Layout>
+  );
+};
+
+// Main App Layout for static menu navigation
+const MainAppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const handleLogout = async () => {
     await logout();
   };
@@ -245,7 +264,9 @@ function App() {
                     {needsUsernameCreation() ? (
                       <Navigate to="/create-username" replace />
                     ) : (
-                      <Profile />
+                      <MainAppLayout>
+                        <Profile />
+                      </MainAppLayout>
                     )}
                   </ProtectedRoute>
                 }
@@ -319,9 +340,26 @@ function App() {
                       {needsUsernameCreation() ? (
                         <Navigate to="/create-username" replace />
                       ) : (
-                        <Portfolio />
+                        <MainAppLayout>
+                          <Portfolio />
+                        </MainAppLayout>
                       )}
                     </PermissionGuard>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/portfolio/:userId"
+                element={
+                  <ProtectedRoute>
+                    {needsUsernameCreation() ? (
+                      <Navigate to="/create-username" replace />
+                    ) : (
+                      <PersistentFeedContainer>
+                        <OtherUserPortfolio />
+                      </PersistentFeedContainer>
+                    )}
                   </ProtectedRoute>
                 }
               />

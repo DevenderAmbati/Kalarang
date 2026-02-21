@@ -12,9 +12,10 @@ export interface GalleryImage {
 export interface GalleryTabProps {
   images: GalleryImage[];
   onImageClick?: (id: string) => void;
+  isOwnProfile?: boolean;
 }
 
-const GalleryTab: React.FC<GalleryTabProps> = ({ images, onImageClick }) => {
+const GalleryTab: React.FC<GalleryTabProps> = ({ images, onImageClick, isOwnProfile = true }) => {
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
@@ -53,10 +54,11 @@ const GalleryTab: React.FC<GalleryTabProps> = ({ images, onImageClick }) => {
         {images.map((image, index) => (
           <div
             key={image.id}
-            className={`gallery-tab-item ${loadedImages.has(image.id) ? 'loaded' : ''} ${failedImages.has(image.id) ? 'error' : ''}`}
-            onClick={() => handleImageClick(image.id)}
+            className={`gallery-tab-item ${loadedImages.has(image.id) ? 'loaded' : ''} ${failedImages.has(image.id) ? 'error' : ''} ${!isOwnProfile ? 'view-only' : ''}`}
+            onClick={() => isOwnProfile && handleImageClick(image.id)}
             style={{
-              animationDelay: `${index * 0.05}s`
+              animationDelay: `${index * 0.05}s`,
+              cursor: isOwnProfile ? 'pointer' : 'default'
             }}
           >
             <div className="gallery-tab-image-wrapper">
@@ -71,12 +73,12 @@ const GalleryTab: React.FC<GalleryTabProps> = ({ images, onImageClick }) => {
                   aspectRatio: image.aspectRatio || 'auto'
                 }}
               />
-              {image.published === false && (
+              {isOwnProfile && image.published === false && (
                 <div className="gallery-unpublished-badge">
                   <span>Unpublished</span>
                 </div>
               )}
-              <div className="gallery-tab-image-overlay" />
+              {isOwnProfile && <div className="gallery-tab-image-overlay" />}
             </div>
           </div>
         ))}

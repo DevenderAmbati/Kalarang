@@ -11,13 +11,14 @@ import {
   removeArtworkFromFavorites
 } from '../../services/interactionService';
 import { Artwork } from '../../types/artwork';
-import { getPublishedArtworksPaginated } from '../../services/artworkService';
+import { getPublishedArtworksPaginated, getPublishedArtworksFromFollowingPaginated } from '../../services/artworkService';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import artAnimation from '../../animations/no content.json';
 import africanArtAnimation from '../../animations/African American Art.json';
 import { cache, cacheKeys } from '../../utils/cache';
-import { getActiveStories, Story as StoryType, groupStoriesByUser, GroupedStory, getViewedStories, markStoriesAsViewed, deleteStory } from '../../services/storyService';
+import { getActiveStories, getActiveStoriesFromFollowing, Story as StoryType, groupStoriesByUser, GroupedStory, getViewedStories, markStoriesAsViewed, deleteStory } from '../../services/storyService';
+import { getFollowingArtistIds } from '../../services/userService';
 import ConfirmModal from '../../components/Modals/ConfirmModal';
 import './homeFeed.css';
 
@@ -59,9 +60,68 @@ const HomeFeed: React.FC = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
+  const [followingArtistIds, setFollowingArtistIds] = useState<string[] | null>(null);
 
   // Use cached data hooks
   const { data: favoriteIds, updateCache: updateFavoritesCache, refetch: refetchFavorites } = useFavorites(appUser?.uid);
+
+  // Fetch following artist IDs on mount
+  useEffect(() => {
+    const fetchFollowingArtists = async () => {
+      if (appUser?.uid) {
+        try {
+          const artistIds = await getFollowingArtistIds(appUser.uid);
+          setFollowingArtistIds(artistIds);
+        } catch (error) {
+          console.error('Error fetching following artists:', error);
+          setFollowingArtistIds([]);
+        }
+      } else {
+        setFollowingArtistIds([]);
+      }
+    };
+
+    fetchFollowingArtists();
+  }, [appUser?.uid]);
+
+  // Listen for follow/unfollow changes from other components
+  useEffect(() => {
+    const handleFollowChanged = ((e: CustomEvent) => {
+      if (e.detail.userId === appUser?.uid) {
+        console.log('[HomeFeed] Follow status changed, refetching...');
+        
+        // Invalidate caches
+        if (appUser?.uid) {
+          cache.invalidate(cacheKeys.homeFeedPaginated(appUser.uid));
+          cache.invalidate(cacheKeys.stories(appUser.uid));
+        }
+        cache.invalidate(cacheKeys.homeFeedPaginated());
+        cache.invalidate(cacheKeys.stories());
+        
+        // Refetch following list
+        const refetchFollowing = async () => {
+          if (appUser?.uid) {
+            try {
+              const artistIds = await getFollowingArtistIds(appUser.uid);
+              setFollowingArtistIds(artistIds);
+              
+              // Reset artworks state to trigger refetch
+              setArtworks([]);
+              setLastVisible(null);
+              setHasMore(true);
+            } catch (error) {
+              console.error('Error refetching following artists:', error);
+            }
+          }
+        };
+        
+        refetchFollowing();
+      }
+    }) as EventListener;
+    
+    window.addEventListener('follow-changed', handleFollowChanged);
+    return () => window.removeEventListener('follow-changed', handleFollowChanged);
+  }, [appUser?.uid]);
 
   // Listen for favorites changes from other components
   useEffect(() => {
@@ -87,11 +147,17 @@ const HomeFeed: React.FC = () => {
   // Initial data fetch with cache
   useEffect(() => {
     const fetchInitialArtworks = async () => {
+      // Wait for followingArtistIds to be loaded
+      if (followingArtistIds === null) return;
+
       // Try to get from cache first
+      const cacheKey = appUser?.uid 
+        ? cacheKeys.homeFeedPaginated(appUser.uid) 
+        : cacheKeys.homeFeedPaginated();
       const cached = cache.get<{
         artworks: Artwork[];
         hasMore: boolean;
-      }>(cacheKeys.homeFeedPaginated());
+      }>(cacheKey);
 
       if (cached.exists && cached.data) {
         // Load from cache immediately
@@ -104,14 +170,16 @@ const HomeFeed: React.FC = () => {
         if (cached.isStale) {
           console.log('[Cache] Cache is stale, refreshing in background');
           try {
-            const result = await getPublishedArtworksPaginated(20);
+            const result = appUser?.uid && followingArtistIds.length > 0
+              ? await getPublishedArtworksFromFollowingPaginated(followingArtistIds, 20)
+              : await getPublishedArtworksPaginated(20);
             setArtworks(result.artworks);
             setLastVisible(result.lastVisible);
             setHasMore(result.hasMore);
             
             // Update cache
             cache.set(
-              cacheKeys.homeFeedPaginated(),
+              cacheKey,
               { artworks: result.artworks, hasMore: result.hasMore },
               2 * 60 * 1000, // 2 minutes stale time
               5 * 60 * 1000  // 5 minutes cache time
@@ -127,18 +195,28 @@ const HomeFeed: React.FC = () => {
       setLoading(true);
       try {
         console.log('[API] Fetching initial homefeed data');
-        const result = await getPublishedArtworksPaginated(20);
-        setArtworks(result.artworks);
-        setLastVisible(result.lastVisible);
-        setHasMore(result.hasMore);
         
-        // Store in cache
-        cache.set(
-          cacheKeys.homeFeedPaginated(),
-          { artworks: result.artworks, hasMore: result.hasMore },
-          2 * 60 * 1000, // 2 minutes stale time
-          5 * 60 * 1000  // 5 minutes cache time
-        );
+        // Only fetch if user is following artists
+        if (appUser?.uid && followingArtistIds.length === 0) {
+          // Not following anyone, show empty state
+          setArtworks([]);
+          setHasMore(false);
+        } else {
+          const result = appUser?.uid && followingArtistIds.length > 0
+            ? await getPublishedArtworksFromFollowingPaginated(followingArtistIds, 20)
+            : await getPublishedArtworksPaginated(20);
+          setArtworks(result.artworks);
+          setLastVisible(result.lastVisible);
+          setHasMore(result.hasMore);
+          
+          // Store in cache
+          cache.set(
+            cacheKey,
+            { artworks: result.artworks, hasMore: result.hasMore },
+            2 * 60 * 1000, // 2 minutes stale time
+            5 * 60 * 1000  // 5 minutes cache time
+          );
+        }
       } catch (error) {
         console.error('Error fetching artworks:', error);
         toast.error('Failed to load artworks');
@@ -148,24 +226,32 @@ const HomeFeed: React.FC = () => {
     };
 
     fetchInitialArtworks();
-  }, []);
+  }, [appUser?.uid, followingArtistIds]);
 
   // Load more artworks
   const loadMoreArtworks = useCallback(async () => {
-    if (!hasMore || loadingMore || !lastVisible) return;
+    if (!hasMore || loadingMore || !lastVisible || followingArtistIds === null) return;
+    
+    // Don't load more if not following anyone
+    if (appUser?.uid && followingArtistIds.length === 0) return;
 
     setLoadingMore(true);
     try {
       console.log('[API] Loading more homefeed artworks');
-      const result = await getPublishedArtworksPaginated(20, lastVisible);
+      const result = appUser?.uid && followingArtistIds.length > 0
+        ? await getPublishedArtworksFromFollowingPaginated(followingArtistIds, 20, lastVisible)
+        : await getPublishedArtworksPaginated(20, lastVisible);
       const updatedArtworks = [...artworks, ...result.artworks];
       setArtworks(updatedArtworks);
       setLastVisible(result.lastVisible);
       setHasMore(result.hasMore);
       
       // Update cache with accumulated artworks
+      const cacheKey = appUser?.uid 
+        ? cacheKeys.homeFeedPaginated(appUser.uid) 
+        : cacheKeys.homeFeedPaginated();
       cache.set(
-        cacheKeys.homeFeedPaginated(),
+        cacheKey,
         { artworks: updatedArtworks, hasMore: result.hasMore },
         2 * 60 * 1000, // 2 minutes stale time
         5 * 60 * 1000  // 5 minutes cache time
@@ -176,7 +262,7 @@ const HomeFeed: React.FC = () => {
     } finally {
       setLoadingMore(false);
     }
-  }, [hasMore, loadingMore, lastVisible, artworks]);
+  }, [hasMore, loadingMore, lastVisible, artworks, appUser?.uid, followingArtistIds]);
 
   // Infinite scroll detection
   useEffect(() => {
@@ -216,9 +302,15 @@ const HomeFeed: React.FC = () => {
 
   // Fetch stories - refetch when component mounts or becomes visible
   const fetchStories = async (forceRefresh = false) => {
+    // Wait for followingArtistIds to be loaded if user is logged in
+    if (followingArtistIds === null) return;
+
     // Try to get from cache first (unless forced refresh)
     if (!forceRefresh) {
-      const cached = cache.get<GroupedStory[]>(cacheKeys.stories());
+      const cacheKey = appUser?.uid 
+        ? cacheKeys.stories(appUser.uid) 
+        : cacheKeys.stories();
+      const cached = cache.get<GroupedStory[]>(cacheKey);
       
       if (cached.exists && cached.data) {
         console.log('[Cache] Loading stories from cache');
@@ -229,13 +321,15 @@ const HomeFeed: React.FC = () => {
         if (cached.isStale) {
           console.log('[Cache] Stories cache is stale, refreshing in background');
           try {
-            const activeStories = await getActiveStories();
+            const activeStories = appUser?.uid && followingArtistIds.length > 0
+              ? await getActiveStoriesFromFollowing(followingArtistIds)
+              : await getActiveStories();
             const grouped = groupStoriesByUser(activeStories, appUser?.uid);
             setGroupedStories(grouped);
             
             // Update cache
             cache.set(
-              cacheKeys.stories(),
+              cacheKey,
               grouped,
               1 * 60 * 1000, // 1 minute stale time (stories should be fresh)
               3 * 60 * 1000  // 3 minutes cache time
@@ -252,15 +346,28 @@ const HomeFeed: React.FC = () => {
     setLoadingStories(true);
     try {
       console.log('[API] Fetching fresh stories data');
-      const activeStories = await getActiveStories();
+      
+      // Only fetch if user is following artists
+      let activeStories: StoryType[] = [];
+      if (appUser?.uid && followingArtistIds.length === 0) {
+        // Not following anyone, show empty stories
+        activeStories = [];
+      } else {
+        activeStories = appUser?.uid && followingArtistIds.length > 0
+          ? await getActiveStoriesFromFollowing(followingArtistIds)
+          : await getActiveStories();
+      }
       
       // Group stories by user (Instagram-style) with current user first
       const grouped = groupStoriesByUser(activeStories, appUser?.uid);
       setGroupedStories(grouped);
       
       // Store in cache
+      const cacheKey = appUser?.uid 
+        ? cacheKeys.stories(appUser.uid) 
+        : cacheKeys.stories();
       cache.set(
-        cacheKeys.stories(),
+        cacheKey,
         grouped,
         1 * 60 * 1000, // 1 minute stale time (stories should be fresh)
         3 * 60 * 1000  // 3 minutes cache time
@@ -282,8 +389,14 @@ const HomeFeed: React.FC = () => {
     };
     
     loadViewedStories();
-    fetchStories();
   }, [appUser?.uid]);
+
+  // Fetch stories when followingArtistIds are loaded
+  useEffect(() => {
+    if (followingArtistIds !== null) {
+      fetchStories();
+    }
+  }, [followingArtistIds]);
 
   // Refetch stories when coming from story creation
   useEffect(() => {
@@ -393,7 +506,7 @@ const HomeFeed: React.FC = () => {
     if (appUser?.uid && currentSessionViewed.size > 0) {
       await markStoriesAsViewed(appUser.uid, Array.from(currentSessionViewed));
       // Invalidate stories cache after viewing
-      cache.invalidate(cacheKeys.stories());
+      cache.invalidate(cacheKeys.stories(appUser.uid));
     }
     
     setCurrentSessionViewed(new Set());
@@ -429,6 +542,9 @@ const HomeFeed: React.FC = () => {
       toast.success('Story deleted successfully');
       
       // Invalidate stories cache
+      if (appUser?.uid) {
+        cache.invalidate(cacheKeys.stories(appUser.uid));
+      }
       cache.invalidate(cacheKeys.stories());
       
       // Remove from current user stories

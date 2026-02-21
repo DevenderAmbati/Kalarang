@@ -9,6 +9,7 @@ import { useFavorites } from '../../hooks/useCachedData';
 import { saveArtworkToFavorites, removeArtworkFromFavorites } from '../../services/interactionService';
 import { Artwork as ArtworkType } from '../../types/artwork';
 import { getPublishedArtworksPaginated } from '../../services/artworkService';
+import { searchUsers } from '../../services/userService';
 import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 import laptopAnimation from '../../animations/Laptop-Drawing 1.json';
 import noContentAnimation from '../../animations/no content.json';
@@ -44,9 +45,16 @@ const Discover: React.FC = () => {
   const navigate = useNavigate();
   const { appUser } = useAuth();
   const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [matchedUsers, setMatchedUsers] = useState<Array<{
+    uid: string;
+    name: string;
+    username?: string;
+    avatar?: string;
+  }>>([]);
   const [activeCategory, setActiveCategory] = useState('All');
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
@@ -221,6 +229,44 @@ const Discover: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Search for users when debounced query changes
+  useEffect(() => {
+    const performUserSearch = async () => {
+      if (debouncedSearchQuery.trim()) {
+        try {
+          // Extract search terms for better matching
+          const query = debouncedSearchQuery.toLowerCase();
+          
+          // If query is in "Name - @username" format, search only by username
+          if (query.includes(' - @')) {
+            const parts = query.split(' - @');
+            const username = parts[1]; // username without @
+            
+            // Search only by username
+            const users = await searchUsers(username);
+            setMatchedUsers(users);
+          } else if (query.startsWith('@')) {
+            // Searching by @username only
+            const username = query.substring(1);
+            const users = await searchUsers(username);
+            setMatchedUsers(users);
+          } else {
+            // Regular search - search by name or username
+            const users = await searchUsers(debouncedSearchQuery);
+            setMatchedUsers(users);
+          }
+        } catch (error) {
+          console.error('Error searching users:', error);
+          setMatchedUsers([]);
+        }
+      } else {
+        setMatchedUsers([]);
+      }
+    };
+
+    performUserSearch();
+  }, [debouncedSearchQuery]);
+
   // Close sort dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -234,6 +280,20 @@ const Discover: React.FC = () => {
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isSortDropdownOpen]);
+
+  // Close search suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+
+    if (showSuggestions) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showSuggestions]);
 
   const handleArtworkClick = (id: string) => {
     sessionStorage.setItem('artworkSourceRoute', '/discover');
@@ -305,6 +365,11 @@ const Discover: React.FC = () => {
     setShowSuggestions(false);
   };
 
+  const handleUserClick = (userId: string) => {
+    sessionStorage.setItem('artworkSourceRoute', '/discover');
+    navigate(`/portfolio/${userId}`);
+  };
+
   // Generate search suggestions based on query (memoized)
   const searchSuggestions = useMemo(() => {
     if (!searchQuery.trim() || !artworks || artworks.length === 0) return [];
@@ -317,10 +382,6 @@ const Discover: React.FC = () => {
       if (artwork.title?.toLowerCase().includes(query)) {
         suggestions.add(artwork.title);
       }
-      // Match in artist name
-      if (artwork.artistName?.toLowerCase().includes(query)) {
-        suggestions.add(artwork.artistName);
-      }
       // Match in category
       if (artwork.category?.toLowerCase().includes(query)) {
         suggestions.add(artwork.category);
@@ -331,8 +392,19 @@ const Discover: React.FC = () => {
       }
     });
 
-    return Array.from(suggestions).slice(0, 6);
-  }, [searchQuery, artworks]);
+    // Add matched users - show both name and username together
+    matchedUsers.forEach(user => {
+      if (user.name && user.username) {
+        suggestions.add(`${user.name} - @${user.username}`);
+      } else if (user.username) {
+        suggestions.add(`@${user.username}`);
+      } else if (user.name) {
+        suggestions.add(user.name);
+      }
+    });
+
+    return Array.from(suggestions).slice(0, 8);
+  }, [searchQuery, artworks, matchedUsers]);
 
   // Filter artworks based on active category and filters (memoized)
   const filteredArtworks = useMemo(() => {
@@ -340,14 +412,63 @@ const Discover: React.FC = () => {
       // Search query filter - search in title, description, artist name, category, and medium
       if (debouncedSearchQuery.trim()) {
         const query = debouncedSearchQuery.toLowerCase();
-        const matchesSearch = 
-          artwork.title?.toLowerCase().includes(query) ||
-          artwork.description?.toLowerCase().includes(query) ||
-          artwork.artistName?.toLowerCase().includes(query) ||
-          artwork.category?.toLowerCase().includes(query) ||
-          artwork.medium?.toLowerCase().includes(query);
         
-        if (!matchesSearch) return false;
+        // Check if searching by artist with "Name - @username" format
+        if (query.includes(' - @')) {
+          const parts = query.split(' - @');
+          const username = parts[1]; // username without @
+          
+          // Find the artist by username
+          const artist = matchedUsers.find(u => u.username?.toLowerCase() === username.toLowerCase());
+          
+          if (artist) {
+            // Match by artist ID primarily
+            if (artwork.artistId === artist.uid) {
+              return true;
+            }
+          }
+          
+          // Fallback: also search in other fields
+          const searchTerms = [parts[0], username]; // name and username
+          return searchTerms.some(term => 
+            artwork.title?.toLowerCase().includes(term) ||
+            artwork.description?.toLowerCase().includes(term) ||
+            artwork.category?.toLowerCase().includes(term) ||
+            artwork.medium?.toLowerCase().includes(term)
+          );
+        } else if (query.startsWith('@')) {
+          // Searching by @username only
+          const username = query.substring(1);
+          
+          // Find the artist by username
+          const artist = matchedUsers.find(u => u.username?.toLowerCase() === username.toLowerCase());
+          
+          if (artist) {
+            // Match by artist ID primarily
+            if (artwork.artistId === artist.uid) {
+              return true;
+            }
+          }
+          
+          // Fallback: search in other fields
+          return (
+            artwork.title?.toLowerCase().includes(username) ||
+            artwork.description?.toLowerCase().includes(username) ||
+            artwork.artistName?.toLowerCase().includes(username) ||
+            artwork.category?.toLowerCase().includes(username) ||
+            artwork.medium?.toLowerCase().includes(username)
+          );
+        } else {
+          // Regular search in all fields
+          const matchesSearch = 
+            artwork.title?.toLowerCase().includes(query) ||
+            artwork.description?.toLowerCase().includes(query) ||
+            artwork.artistName?.toLowerCase().includes(query) ||
+            artwork.category?.toLowerCase().includes(query) ||
+            artwork.medium?.toLowerCase().includes(query);
+          
+          if (!matchesSearch) return false;
+        }
       }
 
     // Category filter
@@ -401,7 +522,7 @@ const Discover: React.FC = () => {
 
     return true;
   });
-  }, [artworks, debouncedSearchQuery, activeCategory, filters]);
+  }, [artworks, debouncedSearchQuery, activeCategory, filters, matchedUsers]);
 
   // Sort filtered artworks
   const sortedArtworks = React.useMemo(() => {
@@ -432,7 +553,7 @@ const Discover: React.FC = () => {
 
         {/* Search Bar */}
         <div className="discover-search-container">
-          <div className="discover-search-bar">
+          <div className="discover-search-bar" ref={searchContainerRef}>
             <svg className="discover-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
@@ -573,60 +694,156 @@ const Discover: React.FC = () => {
               message="Discovering artworks..." 
               fullHeight 
             />
-          ) : sortedArtworks.length === 0 ? (
-            <EmptyState
-              animation={noContentAnimation}
-              title="No Artworks Found"
-              description="Check back later for amazing new artworks from talented artists."
-              actionLabel="Go to Home"
-              actionPath="/home"
-            />
           ) : (
             <>
-              <ArtworkGrid 
-                artworks={sortedArtworks.map(artwork => ({
-                  id: artwork.id,
-                  title: artwork.title,
-                  artworkImage: artwork.images[0],
-                  artistName: artwork.artistName,
-                  artistAvatar: artwork.artistAvatar || '/artist.png',
-                  artistId: artwork.artistId,
-                  price: artwork.price,
-                  sold: artwork.sold,
-                }))}
-                viewType="discover"
-                onArtworkClick={handleArtworkClick}
-                onSave={handleSave}
-                savedArtworks={savedArtworks}
-                currentUserId={appUser?.uid}
-              />
-              {loadingMore && (
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'center', 
-                  padding: '20px',
-                  width: '100%'
-                }}>
+              {/* Matched Users Section */}
+              {debouncedSearchQuery.trim() && matchedUsers.length > 0 && (
+                <div style={{ marginBottom: '30px' }}>
+                  <h3 style={{
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    marginBottom: '16px',
+                    color: 'var(--color-royal)',
+                  }}>
+                    Artists
+                  </h3>
                   <div style={{
-                    border: '3px solid var(--primary-alpha-20)',
-                    borderTop: '3px solid var(--primary)',
-                    borderRadius: '50%',
-                    width: '40px',
-                    height: '40px',
-                    animation: 'spin 1s linear infinite'
-                  }}></div>
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                    gap: '16px',
+                  }}>
+                    {matchedUsers.map(user => (
+                      <div
+                        key={user.uid}
+                        onClick={() => handleUserClick(user.uid)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '12px',
+                          backgroundColor: 'var(--bg-primary)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.06)';
+                        }}
+                      >
+                        <img
+                          src={user.avatar || '/artist.png'}
+                          alt={user.name}
+                          style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '50%',
+                            objectFit: 'cover',
+                          }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            fontWeight: '600',
+                            fontSize: '14px',
+                            color: 'var(--text-primary)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {user.name}
+                          </div>
+                          {user.username && (
+                            <div style={{
+                              fontSize: '13px',
+                              color: 'var(--text-secondary)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              @{user.username}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
-              {!hasMore && artworks.length > 0 && (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '5px',
-                  color: 'var(--color-royal)',
-                  fontSize: '14px'
-                }}>
-                  You've reached the end.
-                </div>
-              )}
+
+              {/* Artworks Section */}
+              {sortedArtworks.length === 0 && matchedUsers.length === 0 ? (
+                <EmptyState
+                  animation={noContentAnimation}
+                  title="No Artworks Found"
+                  description="Check back later for amazing new artworks from talented artists."
+                  actionLabel="Go to Home"
+                  actionPath="/home"
+                />
+              ) : sortedArtworks.length > 0 ? (
+                <>
+                  {debouncedSearchQuery.trim() && (
+                    <h3 style={{
+                      fontSize: '18px',
+                      fontWeight: '600',
+                      marginBottom: '16px',
+                      color: 'var(--color-royal)',
+                    }}>
+                      Artworks
+                    </h3>
+                  )}
+                  <ArtworkGrid 
+                    artworks={sortedArtworks.map(artwork => ({
+                      id: artwork.id,
+                      title: artwork.title,
+                      artworkImage: artwork.images[0],
+                      artistName: artwork.artistName,
+                      artistAvatar: artwork.artistAvatar || '/artist.png',
+                      artistId: artwork.artistId,
+                      price: artwork.price,
+                      sold: artwork.sold,
+                    }))}
+                    viewType="discover"
+                    onArtworkClick={handleArtworkClick}
+                    onSave={handleSave}
+                    savedArtworks={savedArtworks}
+                    currentUserId={appUser?.uid}
+                  />
+                  {loadingMore && (
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      padding: '20px',
+                      width: '100%'
+                    }}>
+                      <div style={{
+                        border: '3px solid var(--primary-alpha-20)',
+                        borderTop: '3px solid var(--primary)',
+                        borderRadius: '50%',
+                        width: '40px',
+                        height: '40px',
+                        animation: 'spin 1s linear infinite'
+                      }}></div>
+                    </div>
+                  )}
+                  {!hasMore && artworks.length > 0 && (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '5px',
+                      color: 'var(--color-royal)',
+                      fontSize: '14px',
+                      marginTop: '30px'
+                    }}>
+                      You've reached the end.
+                    </div>
+                  )}
+                </>
+              ) : null}
             </>
           )}
         </div>

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './ArtworkGridCard.css';
 import { Artwork } from './ArtworkGrid';
 import LazyImage from '../Common/LazyImage';
@@ -42,6 +43,9 @@ const ArtworkGridCard: React.FC<ArtworkGridCardProps> = ({
     setSaved(isSaved);
   }, [isSaved]);
 
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const handleCardClick = () => {
     onArtworkClick(artwork.id);
   };
@@ -50,7 +54,10 @@ const ArtworkGridCard: React.FC<ArtworkGridCardProps> = ({
     e.stopPropagation();
     if (artwork.artistId) {
       const isOwnProfile = artwork.artistId === currentUserId;
-      window.location.href = isOwnProfile ? '/portfolio' : `/portfolio/${artwork.artistId}`;
+      if (!isOwnProfile) {
+        sessionStorage.setItem('artworkSourceRoute', location.pathname);
+      }
+      navigate(isOwnProfile ? '/portfolio' : `/portfolio/${artwork.artistId}`);
     }
   };
 

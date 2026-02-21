@@ -13,7 +13,10 @@ service cloud.firestore {
     match /artworks/{artworkId} {
       allow read: if true; // Anyone can read artworks
       allow create: if request.auth != null && request.resource.data.artistId == request.auth.uid; // Only authenticated users can create their own artworks
-      allow update: if request.auth != null && resource.data.artistId == request.auth.uid; // Only owner can update
+      allow update: if request.auth != null && (
+        resource.data.artistId == request.auth.uid || // Owner can update all fields
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])) // Anyone can update only views field
+      );
       allow delete: if request.auth != null && resource.data.artistId == request.auth.uid; // Only owner can delete
     }
     

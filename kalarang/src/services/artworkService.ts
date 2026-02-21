@@ -163,6 +163,13 @@ export async function getArtistArtworks(
 }
 
 /**
+ * Get artworks by artist (alias for getArtistArtworks)
+ */
+export async function getArtworksByArtist(userId: string): Promise<Artwork[]> {
+  return getArtistArtworks(userId, false);
+}
+
+/**
  * Get all published artworks for feed
  */
 export async function getPublishedArtworks(limitCount: number = 20): Promise<Artwork[]> {
@@ -274,6 +281,117 @@ export async function getPublishedArtworksPaginated(
     artworks: updatedArtworks,
     lastVisible: querySnapshot.docs[querySnapshot.docs.length - 1] || null,
     hasMore: querySnapshot.docs.length === limitCount
+  };
+}
+
+/**
+ * Get paginated published artworks from followed artists only
+ */
+export async function getPublishedArtworksFromFollowingPaginated(
+  followingArtistIds: string[],
+  limitCount: number = 20,
+  lastVisible?: QueryDocumentSnapshot<DocumentData> | null
+): Promise<{ artworks: Artwork[], lastVisible: QueryDocumentSnapshot<DocumentData> | null, hasMore: boolean }> {
+  // If not following anyone, return empty result
+  if (!followingArtistIds || followingArtistIds.length === 0) {
+    return {
+      artworks: [],
+      lastVisible: null,
+      hasMore: false
+    };
+  }
+
+  // Firestore has a limit of 30 items in 'in' queries
+  // For pagination with 'in' queries, we need a different approach
+  // We'll fetch from all followed artists and merge results
+  const batchSize = 30;
+  const batches: string[][] = [];
+  
+  for (let i = 0; i < followingArtistIds.length; i += batchSize) {
+    batches.push(followingArtistIds.slice(i, i + batchSize));
+  }
+  
+  const allArtworks: Artwork[] = [];
+  const allDocs: QueryDocumentSnapshot<DocumentData>[] = [];
+  
+  for (const batch of batches) {
+    let q;
+    
+    if (lastVisible) {
+      q = query(
+        collection(db, "artworks"),
+        where("published", "==", true),
+        where("artistId", "in", batch),
+        orderBy("createdAt", "desc"),
+        startAfter(lastVisible),
+        limit(limitCount)
+      );
+    } else {
+      q = query(
+        collection(db, "artworks"),
+        where("published", "==", true),
+        where("artistId", "in", batch),
+        orderBy("createdAt", "desc"),
+        limit(limitCount)
+      );
+    }
+    
+    try {
+      const querySnapshot = await getDocs(q);
+      querySnapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        allArtworks.push({
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date(),
+        } as Artwork);
+        allDocs.push(doc);
+      });
+    } catch (error) {
+      console.error('Error fetching artworks batch:', error);
+    }
+  }
+  
+  // Sort all artworks by creation time
+  const sortedArtworks = allArtworks.sort((a, b) => {
+    return b.createdAt.getTime() - a.createdAt.getTime();
+  });
+  
+  // Take only the requested limit
+  const paginatedArtworks = sortedArtworks.slice(0, limitCount);
+  
+  // Get unique artist IDs
+  const artistIdsSet = new Set<string>();
+  paginatedArtworks.forEach(a => artistIdsSet.add(a.artistId));
+  const artistIds: string[] = [];
+  artistIdsSet.forEach(id => artistIds.push(id));
+  
+  // Fetch current artist avatars from user profiles
+  const artistAvatars = new Map<string, string>();
+  await Promise.all(
+    artistIds.map(async (artistId) => {
+      const userDoc = await getDoc(doc(db, "users", artistId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        artistAvatars.set(artistId, userData.avatar || '/artist.png');
+      }
+    })
+  );
+  
+  // Update artworks with current artist avatars
+  const updatedArtworks = paginatedArtworks.map(artwork => ({
+    ...artwork,
+    artistAvatar: artistAvatars.get(artwork.artistId) || artwork.artistAvatar || '/artist.png'
+  }));
+  
+  // Find the last document for pagination
+  const lastDoc = allDocs.length > 0 ? allDocs[allDocs.length - 1] : null;
+  
+  return {
+    artworks: updatedArtworks,
+    lastVisible: lastDoc,
+    hasMore: sortedArtworks.length > limitCount
   };
 }
 

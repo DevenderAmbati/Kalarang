@@ -11,9 +11,10 @@ import lineArt1Animation from '../../animations/Line art (1).json';
 
 interface GalleryProps {
   cachedData?: UseCachedDataResult<Artwork[]>;
+  isOwnProfile?: boolean;
 }
 
-const Gallery: React.FC<GalleryProps> = ({ cachedData }) => {
+const Gallery: React.FC<GalleryProps> = ({ cachedData, isOwnProfile = true }) => {
   const { appUser } = useAuth();
   const navigate = useNavigate();
   
@@ -49,7 +50,7 @@ const Gallery: React.FC<GalleryProps> = ({ cachedData }) => {
   }
 
   if (galleryImages.length === 0) {
-    return (
+    return isOwnProfile ? (
       <EmptyState
         animation={noContentAnimation}
         title="Your Gallery Awaits"
@@ -57,11 +58,17 @@ const Gallery: React.FC<GalleryProps> = ({ cachedData }) => {
         actionLabel="Upload Your First Piece"
         actionPath="/post"
       />
+    ) : (
+      <EmptyState
+        animation={noContentAnimation}
+        title="No Artworks Yet"
+        description="This artist hasn't uploaded any artworks to their gallery."
+      />
     );
   }
 
 
-  return <GalleryTab images={galleryImages} onImageClick={handleImageClick} />;
+  return <GalleryTab images={galleryImages} onImageClick={isOwnProfile ? handleImageClick : undefined} isOwnProfile={isOwnProfile} />;
 };
 
 export default Gallery;

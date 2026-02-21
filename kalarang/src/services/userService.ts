@@ -164,3 +164,183 @@ export async function updateUserAvatar(
   
   return avatarUrl;
 }
+
+/**
+ * Get user statistics (followers, following, artworks)
+ */
+export async function getUserStats(userId: string): Promise<{
+  followers: number;
+  following: number;
+  artworks: number;
+}> {
+  // Count followers (excluding self)
+  const followersRef = collection(db, "follows");
+  const followersQuery = query(followersRef, where("artistId", "==", userId));
+  const followersSnapshot = await getDocs(followersQuery);
+  const followers = followersSnapshot.docs.filter(doc => doc.data().followerId !== userId).length;
+
+  // Count following (excluding self)
+  const followingQuery = query(followersRef, where("followerId", "==", userId));
+  const followingSnapshot = await getDocs(followingQuery);
+  const following = followingSnapshot.docs.filter(doc => doc.data().artistId !== userId).length;
+
+  // Count artworks
+  const artworksRef = collection(db, "artworks");
+  const artworksQuery = query(artworksRef, where("artistId", "==", userId), where("published", "==", true));
+  const artworksSnapshot = await getDocs(artworksQuery);
+  const artworks = artworksSnapshot.size;
+
+  return { followers, following, artworks };
+}
+
+/**
+ * Get list of followers with user details
+ */
+export async function getFollowersList(userId: string): Promise<Array<{
+  uid: string;
+  name: string;
+  username?: string;
+  avatar?: string;
+}>> {
+  const followersRef = collection(db, "follows");
+  const followersQuery = query(followersRef, where("artistId", "==", userId));
+  const followersSnapshot = await getDocs(followersQuery);
+  
+  // Filter out self-follows
+  const followerIds = followersSnapshot.docs
+    .map(doc => doc.data().followerId)
+    .filter(followerId => followerId !== userId);
+  
+  // Fetch user details for each follower
+  const followers = await Promise.all(
+    followerIds.map(async (followerId) => {
+      const userDoc = await getDoc(doc(db, "users", followerId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        return {
+          uid: followerId,
+          name: userData.name || 'Unknown User',
+          username: userData.username,
+          avatar: userData.avatar,
+        };
+      }
+      return null;
+    })
+  );
+  
+  return followers.filter(f => f !== null) as Array<{
+    uid: string;
+    name: string;
+    username?: string;
+    avatar?: string;
+  }>;
+}
+
+/**
+ * Get list of users being followed with user details
+ */
+export async function getFollowingList(userId: string): Promise<Array<{
+  uid: string;
+  name: string;
+  username?: string;
+  avatar?: string;
+}>> {
+  const followsRef = collection(db, "follows");
+  const followingQuery = query(followsRef, where("followerId", "==", userId));
+  const followingSnapshot = await getDocs(followingQuery);
+  
+  // Filter out self-follows
+  const followingIds = followingSnapshot.docs
+    .map(doc => doc.data().artistId)
+    .filter(artistId => artistId !== userId);
+  
+  // Fetch user details for each followed user
+  const following = await Promise.all(
+    followingIds.map(async (artistId) => {
+      const userDoc = await getDoc(doc(db, "users", artistId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        return {
+          uid: artistId,
+          name: userData.name || 'Unknown User',
+          username: userData.username,
+          avatar: userData.avatar,
+        };
+      }
+      return null;
+    })
+  );
+  
+  return following.filter(f => f !== null) as Array<{
+    uid: string;
+    name: string;
+    username?: string;
+    avatar?: string;
+  }>;
+}
+
+/**
+ * Get artist IDs that a user is following (lightweight version)
+ */
+export async function getFollowingArtistIds(userId: string): Promise<string[]> {
+  const followsRef = collection(db, "follows");
+  const followingQuery = query(followsRef, where("followerId", "==", userId));
+  const followingSnapshot = await getDocs(followingQuery);
+  
+  // Filter out self-follows and return only IDs
+  return followingSnapshot.docs
+    .map(doc => doc.data().artistId)
+    .filter(artistId => artistId !== userId);
+}
+
+/**
+ * Search users by name or username (artists only)
+ */
+export async function searchUsers(searchQuery: string): Promise<Array<{
+  uid: string;
+  name: string;
+  username?: string;
+  avatar?: string;
+}>> {
+  if (!searchQuery.trim()) {
+    return [];
+  }
+
+  const usersRef = collection(db, "users");
+  const usersSnapshot = await getDocs(usersRef);
+  
+  // Remove @ prefix if present for username search
+  const query = searchQuery.toLowerCase().trim();
+  const queryWithoutAt = query.startsWith('@') ? query.substring(1) : query;
+  
+  const matchingUsers: Array<{
+    uid: string;
+    name: string;
+    username?: string;
+    avatar?: string;
+  }> = [];
+
+  usersSnapshot.docs.forEach(doc => {
+    const userData = doc.data();
+    const name = userData.name?.toLowerCase() || '';
+    const username = userData.username?.toLowerCase() || '';
+    const role = userData.role;
+
+    // Only include artists, not buyers
+    if (role !== 'artist') {
+      return;
+    }
+
+    // Match by name or username (with or without @ prefix)
+    if (name.includes(query) || username.includes(queryWithoutAt)) {
+      matchingUsers.push({
+        uid: doc.id,
+        name: userData.name || 'Unknown User',
+        username: userData.username,
+        avatar: userData.avatar,
+      });
+    }
+  });
+
+  return matchingUsers;
+}

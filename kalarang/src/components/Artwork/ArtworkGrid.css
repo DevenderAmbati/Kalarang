@@ -1,8 +1,10 @@
 .artwork-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
-  gap: 24px;
-  width: auto !important;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  width: 100%;
+  margin-top: 24px;
+  padding: 0 6px;
   /* Performance optimizations */
   contain: layout style;
   content-visibility: auto;
@@ -25,10 +27,24 @@
   scroll-behavior: smooth;
 }
 
-/* Tablet - 3 columns */
-@media (min-width: 640px) and (max-width: 1023px) {
+/* Desktop Large - 4 columns */
+@media (min-width: 1440px) {
+  .artwork-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Desktop - 3 columns */
+@media (min-width: 1024px) and (max-width: 1439px) {
   .artwork-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Tablet - 2 columns */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .artwork-grid {
+    grid-template-columns: repeat(2, 1fr);
     gap: 20px;
   }
 }

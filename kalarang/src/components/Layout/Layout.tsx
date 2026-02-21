@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import CollapsedSidebar from './CollapsedSidebar';
@@ -35,6 +35,17 @@ const Layout: React.FC<LayoutProps> = ({
   const { appUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [, forceUpdate] = useState({});
+
+  // Force re-render when document title changes (for dynamic portfolio titles)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (location.pathname.startsWith('/portfolio/')) {
+        forceUpdate({});
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [location.pathname]);
 
   const handleProfileClick = () => {
     navigate('/profile');
@@ -45,12 +56,13 @@ const Layout: React.FC<LayoutProps> = ({
   const isDiscoverActive = location.pathname === '/discover';
   const isFavouritesActive = location.pathname === '/favourites';
   const isArtworkDetail = location.pathname.startsWith('/card/');
+  const isOtherUserPortfolio = location.pathname.startsWith('/portfolio/') && location.pathname !== '/portfolio';
   
   // Determine if we're in persistent mounting mode (feed pages)
   const isPersistentMode = homeFeedComponent && discoverComponent && favouritesComponent;
   
-  // Show persistent pages for /home, /discover, /favourites, and when viewing artwork detail
-  const showPersistentPages = isPersistentMode && (isHomeFeedActive || isDiscoverActive || isFavouritesActive || isArtworkDetail);
+  // Show persistent pages for /home, /discover, /favourites, and when viewing artwork detail or other user portfolio
+  const showPersistentPages = isPersistentMode && (isHomeFeedActive || isDiscoverActive || isFavouritesActive || isArtworkDetail || isOtherUserPortfolio);
 
   // Determine page title based on route
   const getPageTitle = () => {
@@ -58,6 +70,13 @@ const Layout: React.FC<LayoutProps> = ({
     if (isDiscoverActive) return 'Discover';
     if (isFavouritesActive) return 'Favourites';
     if (isArtworkDetail) return 'Artwork';
+    if (location.pathname === '/portfolio') return 'Portfolio';
+    if (location.pathname.startsWith('/portfolio/')) {
+      // Extract first name from document title if available
+      const titleMatch = document.title.match(/^(.+?)'s Portfolio/);
+      return titleMatch ? `${titleMatch[1]}'s Portfolio` : 'Portfolio';
+    }
+    if (location.pathname === '/profile') return 'Profile';
     return pageTitle;
   };
   
@@ -92,22 +111,29 @@ const Layout: React.FC<LayoutProps> = ({
           {showPersistentPages ? (
             <>
               {/* HomeFeed - Independent scroll container */}
-              <div style={isHomeFeedActive && !isArtworkDetail ? styles.feedScrollContainer : styles.feedScrollContainerHidden}>
+              <div style={isHomeFeedActive && !isArtworkDetail && !isOtherUserPortfolio ? styles.feedScrollContainer : styles.feedScrollContainerHidden}>
                 {homeFeedComponent}
               </div>
               
               {/* Discover - Independent scroll container */}
-              <div style={isDiscoverActive && !isArtworkDetail ? styles.feedScrollContainer : styles.feedScrollContainerHidden}>
+              <div style={isDiscoverActive && !isArtworkDetail && !isOtherUserPortfolio ? styles.feedScrollContainer : styles.feedScrollContainerHidden}>
                 {discoverComponent}
               </div>
               
               {/* Favourites - Independent scroll container */}
-              <div style={isFavouritesActive && !isArtworkDetail ? styles.feedScrollContainer : styles.feedScrollContainerHidden}>
+              <div style={isFavouritesActive && !isArtworkDetail && !isOtherUserPortfolio ? styles.feedScrollContainer : styles.feedScrollContainerHidden}>
                 {favouritesComponent}
               </div>
               
               {/* ArtworkDetail - Independent scroll container */}
               {isArtworkDetail && (
+                <div style={styles.artworkDetailScrollContainer}>
+                  {children}
+                </div>
+              )}
+              
+              {/* OtherUserPortfolio - Independent scroll container */}
+              {isOtherUserPortfolio && (
                 <div style={styles.artworkDetailScrollContainer}>
                   {children}
                 </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ArtworkDetail, { Artwork as ArtworkDetailType, Artist } from '../../components/Artwork/ArtworkDetail';
 import LoadingState from '../../components/State/LoadingState';
 import { useAuth } from '../../context/AuthContext';
@@ -21,6 +21,7 @@ const CardDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { appUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [artwork, setArtwork] = useState<ArtworkDetailType | null>(null);
   const [artist, setArtist] = useState<Artist | null>(null);
   const [isSaved, setIsSaved] = useState(false);
@@ -57,7 +58,9 @@ const CardDetail: React.FC = () => {
 
     try {
       setLoading(true);
+      console.log('[CardDetail] Fetching artwork:', id);
       const fetchedArtwork = await getArtwork(id);
+      console.log('[CardDetail] Artwork fetched successfully:', fetchedArtwork);
       
       if (!fetchedArtwork) {
         toast.error('Artwork not found');
@@ -65,8 +68,15 @@ const CardDetail: React.FC = () => {
         return;
       }
 
-      // Increment view count
-      await incrementArtworkViews(id);
+      // Increment view count (non-blocking)
+      console.log('[CardDetail] Incrementing view count');
+      try {
+        await incrementArtworkViews(id);
+        console.log('[CardDetail] View count incremented');
+      } catch (error) {
+        console.warn('[CardDetail] Could not increment view count (non-critical):', error);
+        // Don't block artwork display if view count update fails
+      }
 
       // Convert to ArtworkDetailType
       const artworkDetail: ArtworkDetailType = {
@@ -97,14 +107,26 @@ const CardDetail: React.FC = () => {
 
       // Check if user is following artist and if artwork is in favorites
       if (appUser && appUser.uid !== fetchedArtwork.artistId) {
-        const following = await isFollowingArtist(appUser.uid, fetchedArtwork.artistId);
-        artistData.isFollowing = following;
+        console.log('[CardDetail] Checking if following artist');
+        try {
+          const following = await isFollowingArtist(appUser.uid, fetchedArtwork.artistId);
+          artistData.isFollowing = following;
+          console.log('[CardDetail] Following status:', following);
+        } catch (error) {
+          console.error('[CardDetail] Error checking follow status:', error);
+        }
       }
 
       // Check if artwork is in favorites (for any logged-in user)
       if (appUser) {
-        const saved = await isArtworkInFavorites(appUser.uid, id);
-        setIsSaved(saved);
+        console.log('[CardDetail] Checking if artwork is in favorites');
+        try {
+          const saved = await isArtworkInFavorites(appUser.uid, id);
+          setIsSaved(saved);
+          console.log('[CardDetail] Favorite status:', saved);
+        } catch (error) {
+          console.error('[CardDetail] Error checking favorite status:', error);
+        }
       }
 
       setArtist(artistData);
@@ -195,6 +217,9 @@ const CardDetail: React.FC = () => {
         setArtist({ ...artist, isFollowing: true });
         toast.success('Following artist');
       }
+      
+      // Broadcast change to other components
+      window.dispatchEvent(new CustomEvent('follow-changed', { detail: { userId: appUser.uid } }));
     } catch (error) {
       console.error('Error toggling follow:', error);
       toast.error('Failed to update follow status');
@@ -203,6 +228,18 @@ const CardDetail: React.FC = () => {
 
   const handleThumbnailClick = (imageUrl: string) => {
     console.log('Thumbnail clicked:', imageUrl);
+  };
+
+  const handleArtistClick = (artistId: string) => {
+    const isOwnProfile = artistId === appUser?.uid;
+    if (!isOwnProfile) {
+      // Preserve the original source route if it exists, otherwise use current path
+      const currentSource = sessionStorage.getItem('artworkSourceRoute');
+      if (!currentSource || currentSource.startsWith('/card/')) {
+        sessionStorage.setItem('artworkSourceRoute', location.pathname);
+      }
+    }
+    navigate(isOwnProfile ? '/portfolio' : `/portfolio/${artistId}`);
   };
 
   if (loading || !artwork || !artist) {
@@ -224,6 +261,7 @@ const CardDetail: React.FC = () => {
       onReachOut={handleReachOut}
       onFollow={handleFollow}
       onThumbnailClick={handleThumbnailClick}
+      onArtistClick={handleArtistClick}
       onSave={handleLike}
       isSaved={isSaved}
       currentUserId={appUser?.uid}

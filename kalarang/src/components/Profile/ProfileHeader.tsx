@@ -27,6 +27,11 @@ interface ProfileHeaderProps {
   onAvatarUpdate?: (newAvatarUrl: string) => void;
   originalBannerImage?: string;
   isOwner?: boolean;
+  isFollowing?: boolean;
+  onFollow?: () => void;
+  onReachOut?: () => void;
+  onFollowersClick?: () => void;
+  onFollowingClick?: () => void;
 }
 
 const ProfileHeader: React.FC<ProfileHeaderProps> = ({
@@ -37,6 +42,11 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   onAvatarUpdate,
   originalBannerImage,
   isOwner = false,
+  isFollowing = false,
+  onFollow,
+  onReachOut,
+  onFollowersClick,
+  onFollowingClick,
 }) => {
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -247,7 +257,20 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             width: 'fit-content',
             maxWidth: '400px'
           }}>
-            <div className="stat-item">
+            <div 
+              className="stat-item"
+              onClick={isOwner ? onFollowersClick : undefined}
+              style={{
+                cursor: isOwner ? 'pointer' : 'default',
+                transition: 'transform 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (isOwner) e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                if (isOwner) e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
               <span className="stat-number">{formatNumber(user.stats.followers)}</span>
               <span className="stat-label">Followers</span>
             </div>
@@ -267,7 +290,20 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
               lineHeight: 1,
               margin: '0 0.3rem'
             }}>|</span>
-            <div className="stat-item">
+            <div 
+              className="stat-item"
+              onClick={isOwner ? onFollowingClick : undefined}
+              style={{
+                cursor: isOwner ? 'pointer' : 'default',
+                transition: 'transform 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (isOwner) e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={(e) => {
+                if (isOwner) e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
               <span className="stat-number">{formatNumber(user.stats.following)}</span>
               <span className="stat-label">Following</span>
             </div>
@@ -327,8 +363,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 whiteSpace: 'nowrap',
                 width: '160px'
               }}
-              onClick={onEditProfile}
-              aria-label={isOwner ? "Edit profile" : "Reach out via email"}
+              onClick={isOwner ? onEditProfile : onFollow}
+              aria-label={isOwner ? "Edit profile" : (isFollowing ? "Unfollow" : "Follow")}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = 'var(--primary-alpha-10)';
                 e.currentTarget.style.transform = 'translateY(-1px)';
@@ -347,8 +383,8 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
                 </>
               ) : (
                 <>
-                  {(MdEmail as any)({ className: "btn-icon" })}
-                  Reach Out
+                  {(BsPersonCircle as any)({ className: "btn-icon" })}
+                  {isFollowing ? 'Following' : 'Follow'}
                 </>
               )}
             </button>

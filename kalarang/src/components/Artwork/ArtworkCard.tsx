@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './ArtworkCard.css';
 import LazyImage from '../Common/LazyImage';
 
@@ -35,6 +36,9 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
 }) => {
   const [isAnimating, setIsAnimating] = useState(false);
 
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const handleCardClick = () => {
     if (onCardClick) {
       onCardClick(id);
@@ -45,7 +49,10 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
     e.stopPropagation();
     if (artistId) {
       const isOwnProfile = artistId === currentUserId;
-      window.location.href = isOwnProfile ? '/portfolio' : `/portfolio/${artistId}`;
+      if (!isOwnProfile) {
+        sessionStorage.setItem('artworkSourceRoute', location.pathname);
+      }
+      navigate(isOwnProfile ? '/portfolio' : `/portfolio/${artistId}`);
     }
   };
 

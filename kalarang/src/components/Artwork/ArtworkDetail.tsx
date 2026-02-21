@@ -115,12 +115,14 @@ const ArtworkDetail: React.FC<ArtworkDetailProps> = ({
           >
             {artist.name}
           </span>
-          <button
-            className="follow-button"
-            onClick={(e) => handleIconClick(e, () => onFollow?.(artist.id))}
-          >
-            {artist.isFollowing ? 'Following' : 'Follow'}
-          </button>
+          {artist.id !== currentUserId && (
+            <button
+              className="follow-button"
+              onClick={(e) => handleIconClick(e, () => onFollow?.(artist.id))}
+            >
+              {artist.isFollowing ? 'Following' : 'Follow'}
+            </button>
+          )}
         </div>
         
         <button

@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout/Layout';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import WhatsAppVerificationModal from '../../components/Modals/WhatsAppVerificationModal';
+import { getUserStats, getFollowersList, getFollowingList } from '../../services/userService';
+import { unfollowArtist } from '../../services/interactionService';
+import FollowersModal from '../../components/Modals/FollowersModal';
+import { toast } from 'react-toastify';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -19,6 +23,27 @@ const Profile: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [stats, setStats] = useState({ followers: 0, following: 0, artworks: 0 });
+  const [followersModal, setFollowersModal] = useState<{
+    isOpen: boolean;
+    type: 'followers' | 'following';
+    users: Array<{ uid: string; name: string; username?: string; avatar?: string }>;
+    isLoading: boolean;
+  }>({ isOpen: false, type: 'followers', users: [], isLoading: false });
+
+  // Load user stats
+  useEffect(() => {
+    const loadStats = async () => {
+      if (!appUser?.uid) return;
+      try {
+        const userStats = await getUserStats(appUser.uid);
+        setStats(userStats);
+      } catch (error) {
+        console.error('Error loading stats:', error);
+      }
+    };
+    loadStats();
+  }, [appUser?.uid]);
 
   const handleLogout = async () => {
     await logout();
@@ -112,9 +137,86 @@ const Profile: React.FC = () => {
 
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
 
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+  };
+
+  const handleFollowersClick = async () => {
+    if (!appUser) return;
+    setFollowersModal({ isOpen: true, type: 'followers', users: [], isLoading: true });
+    try {
+      const followers = await getFollowersList(appUser.uid);
+      setFollowersModal({ isOpen: true, type: 'followers', users: followers, isLoading: false });
+    } catch (error) {
+      console.error('Error loading followers:', error);
+      toast.error('Failed to load followers');
+      setFollowersModal({ isOpen: false, type: 'followers', users: [], isLoading: false });
+    }
+  };
+
+  const handleFollowingClick = async () => {
+    if (!appUser) return;
+    setFollowersModal({ isOpen: true, type: 'following', users: [], isLoading: true });
+    try {
+      const following = await getFollowingList(appUser.uid);
+      setFollowersModal({ isOpen: true, type: 'following', users: following, isLoading: false });
+    } catch (error) {
+      console.error('Error loading following:', error);
+      toast.error('Failed to load following');
+      setFollowersModal({ isOpen: false, type: 'following', users: [], isLoading: false });
+    }
+  };
+
+  const handleCloseFollowersModal = () => {
+    setFollowersModal({ isOpen: false, type: 'followers', users: [], isLoading: false });
+  };
+
+  const handleRemoveFollower = async (followerId: string) => {
+    if (!appUser) return;
+    try {
+      // Remove the follower by unfollowing from their side
+      await unfollowArtist(followerId, appUser.uid);
+      toast.success('Follower removed');
+      
+      // Refresh the followers list
+      const updatedFollowers = await getFollowersList(appUser.uid);
+      setFollowersModal(prev => ({ ...prev, users: updatedFollowers }));
+      
+      // Refresh stats
+      const userStats = await getUserStats(appUser.uid);
+      setStats(userStats);
+    } catch (error) {
+      console.error('Error removing follower:', error);
+      toast.error('Failed to remove follower');
+    }
+  };
+
+  const handleUnfollow = async (artistId: string) => {
+    if (!appUser) return;
+    try {
+      await unfollowArtist(appUser.uid, artistId);
+      toast.success('Unfollowed successfully');
+      
+      // Refresh the following list
+      const updatedFollowing = await getFollowingList(appUser.uid);
+      setFollowersModal(prev => ({ ...prev, users: updatedFollowing }));
+      
+      // Refresh stats
+      const userStats = await getUserStats(appUser.uid);
+      setStats(userStats);
+    } catch (error) {
+      console.error('Error unfollowing user:', error);
+      toast.error('Failed to unfollow');
+    }
+  };
 
   return (
-    <Layout onLogout={handleLogout} pageTitle="Profile">
+    <div>
       <div style={styles.container}>
         <div style={styles.content}>
           <div style={styles.profileHeader}>
@@ -126,8 +228,60 @@ const Profile: React.FC = () => {
               )}
             </div>
             <div style={styles.profileInfo}>
-              <h2 style={styles.name}>{appUser?.name ? capitalizeName(appUser.name) : 'User'}</h2>
-              <p style={styles.email}>{appUser?.email}</p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                <div>
+                  <h2 style={styles.name}>{appUser?.name ? capitalizeName(appUser.name) : 'User'}</h2>
+                  <p style={styles.email}>{appUser?.email}</p>
+                </div>
+                
+                {/* Following Stats */}
+                {appUser?.role === 'artist' && (
+                  <div 
+                    onClick={handleFollowingClick}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      cursor: 'pointer',
+                      padding: '0.5rem 1rem',
+                      backgroundColor: 'rgba(47, 164, 169, 0.05)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(47, 164, 169, 0.2)',
+                      transition: 'all 0.2s ease',
+                      minWidth: '90px',
+                      flexShrink: 0
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(47, 164, 169, 0.1)';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(47, 164, 169, 0.05)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <span style={{ 
+                      fontSize: '1.5rem', 
+                      fontWeight: 700, 
+                      color: 'var(--color-teal, #0d9488)',
+                      lineHeight: 1
+                    }}>
+                      {formatNumber(stats.following)}
+                    </span>
+                    <span style={{ 
+                      fontSize: '0.7rem', 
+                      color: 'var(--color-text-secondary)',
+                      marginTop: '0.25rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      fontWeight: 600
+                    }}>
+                      Following
+                    </span>
+                  </div>
+                )}
+              </div>
+              
               <div style={styles.badgeRow}>
                 <span style={styles.roleBadge}>
                   {appUser?.role === 'artist' ? '🎨 Artist' : '🎩 Art Lover'}
@@ -350,7 +504,18 @@ const Profile: React.FC = () => {
         />
       )
     }
-    </Layout>
+    
+    {/* Followers Modal */}
+    <FollowersModal
+      isOpen={followersModal.isOpen}
+      onClose={handleCloseFollowersModal}
+      type={followersModal.type}
+      users={followersModal.users}
+      isLoading={followersModal.isLoading}
+      onRemoveFollower={handleRemoveFollower}
+      onUnfollow={handleUnfollow}
+    />
+    </div>
   );
 };
 

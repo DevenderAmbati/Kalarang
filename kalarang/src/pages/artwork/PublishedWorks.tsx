@@ -18,9 +18,15 @@ interface PublishedWorksProps {
   cachedData?: UseCachedDataResult<Artwork[]>;
   onAddToStory?: (id: string) => void;
   artworkIdsInStories?: Set<string>;
+  isOwnProfile?: boolean;
 }
 
-const PublishedWorks: React.FC<PublishedWorksProps> = ({ cachedData, onAddToStory, artworkIdsInStories = new Set() }) => {
+const PublishedWorks: React.FC<PublishedWorksProps> = ({ 
+  cachedData, 
+  onAddToStory, 
+  artworkIdsInStories = new Set(),
+  isOwnProfile = true 
+}) => {
   const { appUser } = useAuth();
   const navigate = useNavigate();
   
@@ -233,13 +239,21 @@ const PublishedWorks: React.FC<PublishedWorksProps> = ({ cachedData, onAddToStor
       <div className="published-works-container">
         <div className="published-works-content">
           {!artworks || artworks.length === 0 ? (
-            <EmptyState
-              animation={noContentAnimation}
-              title="Ready to Publish?"
-              description="Your portfolio is waiting for your masterpieces! Upload artwork from the Gallery tab and publish it to share with the world."
-              actionLabel="Create Artwork"
-              actionPath="/post"
-            />
+            isOwnProfile ? (
+              <EmptyState
+                animation={noContentAnimation}
+                title="Ready to Publish?"
+                description="Your portfolio is waiting for your masterpieces! Upload artwork from the Gallery tab and publish it to share with the world."
+                actionLabel="Create Artwork"
+                actionPath="/post"
+              />
+            ) : (
+              <EmptyState
+                animation={noContentAnimation}
+                title="No Published Works"
+                description="This artist hasn't published any artworks yet."
+              />
+            )
           ) : (
             <ArtworkGrid 
               artworks={artworks.map(artwork => ({

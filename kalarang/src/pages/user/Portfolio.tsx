@@ -10,10 +10,12 @@ import { logout } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
 import { PortfolioProvider } from '../../context/PortfolioContext';
 import { usePublishedWorks, useGalleryWorks } from '../../hooks/useCachedData';
-import { getUserProfile, updateUserBanner, updateUserAvatar, updateUserProfile } from '../../services/userService';
+import { getUserProfile, updateUserBanner, updateUserAvatar, updateUserProfile, getUserStats, getFollowersList, getFollowingList } from '../../services/userService';
+import { unfollowArtist } from '../../services/interactionService';
 import { toast } from 'react-toastify';
 import { Artwork } from '../../types/artwork';
 import { createStory, getUserStories } from '../../services/storyService';
+import FollowersModal from '../../components/Modals/FollowersModal';
 import '../../components/Artwork/ArtworkGridCard.css'; // Import for story modal styles
 
 const Portfolio: React.FC = () => {
@@ -24,6 +26,12 @@ const Portfolio: React.FC = () => {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [storyArtwork, setStoryArtwork] = useState<Artwork | null>(null);
   const [artworkIdsInStories, setArtworkIdsInStories] = useState<Set<string>>(new Set());
+  const [followersModal, setFollowersModal] = useState<{
+    isOpen: boolean;
+    type: 'followers' | 'following';
+    users: Array<{ uid: string; name: string; username?: string; avatar?: string }>;
+    isLoading: boolean;
+  }>({ isOpen: false, type: 'followers', users: [], isLoading: false });
   
   // Fetch data at Portfolio level to persist across tab switches
   const publishedWorksData = usePublishedWorks(appUser?.uid);
@@ -86,6 +94,73 @@ const Portfolio: React.FC = () => {
     }
   };
 
+  const handleFollowersClick = async () => {
+    if (!appUser) return;
+    setFollowersModal({ isOpen: true, type: 'followers', users: [], isLoading: true });
+    try {
+      const followers = await getFollowersList(appUser.uid);
+      setFollowersModal({ isOpen: true, type: 'followers', users: followers, isLoading: false });
+    } catch (error) {
+      console.error('Error loading followers:', error);
+      toast.error('Failed to load followers');
+      setFollowersModal({ isOpen: false, type: 'followers', users: [], isLoading: false });
+    }
+  };
+
+  const handleFollowingClick = async () => {
+    if (!appUser) return;
+    setFollowersModal({ isOpen: true, type: 'following', users: [], isLoading: true });
+    try {
+      const following = await getFollowingList(appUser.uid);
+      setFollowersModal({ isOpen: true, type: 'following', users: following, isLoading: false });
+    } catch (error) {
+      console.error('Error loading following:', error);
+      toast.error('Failed to load following');
+      setFollowersModal({ isOpen: false, type: 'following', users: [], isLoading: false });
+    }
+  };
+
+  const handleCloseFollowersModal = () => {
+    setFollowersModal({ isOpen: false, type: 'followers', users: [], isLoading: false });
+  };
+
+  const handleRemoveFollower = async (followerId: string) => {
+    if (!appUser) return;
+    try {
+      // Remove the follower by unfollowing from their side
+      await unfollowArtist(followerId, appUser.uid);
+      toast.success('Follower removed');
+      
+      // Refresh the followers list
+      const updatedFollowers = await getFollowersList(appUser.uid);
+      setFollowersModal(prev => ({ ...prev, users: updatedFollowers }));
+      
+      // Refresh stats
+      await refreshStats();
+    } catch (error) {
+      console.error('Error removing follower:', error);
+      toast.error('Failed to remove follower');
+    }
+  };
+
+  const handleUnfollow = async (artistId: string) => {
+    if (!appUser) return;
+    try {
+      await unfollowArtist(appUser.uid, artistId);
+      toast.success('Unfollowed successfully');
+      
+      // Refresh the following list
+      const updatedFollowing = await getFollowingList(appUser.uid);
+      setFollowersModal(prev => ({ ...prev, users: updatedFollowing }));
+      
+      // Refresh stats
+      await refreshStats();
+    } catch (error) {
+      console.error('Error unfollowing user:', error);
+      toast.error('Failed to unfollow');
+    }
+  };
+
   const handleAddToStory = (id: string) => {
     const artwork = publishedWorksData.data?.find((a: Artwork) => a.id === id);
     if (artwork) {
@@ -137,9 +212,9 @@ const Portfolio: React.FC = () => {
     avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=120&h=120&fit=crop&crop=face',
     bannerImage: '/logo.jpeg',
     stats: {
-      followers: 1247,
-      artworks: 89,
-      following: 234,
+      followers: 0,
+      artworks: 0,
+      following: 0,
     },
   });
 
@@ -153,17 +228,17 @@ const Portfolio: React.FC = () => {
 
       try {
         const profile = await getUserProfile(appUser.uid);
+        
+        // Fetch real-time stats
+        const stats = await getUserStats(appUser.uid);
+        
         if (profile) {
           setMockUser({
             name: profile.name || appUser.name,
             username: profile.username,
             avatar: profile.avatar || 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=120&h=120&fit=crop&crop=face',
             bannerImage: profile.bannerImage || '/logo.jpeg',
-            stats: profile.stats || {
-              followers: 0,
-              artworks: 0,
-              following: 0,
-            },
+            stats: stats,
           });
 
           // Update profile data state
@@ -192,6 +267,35 @@ const Portfolio: React.FC = () => {
     };
 
     loadUserProfile();
+  }, [appUser]);
+
+  // Function to refresh stats
+  const refreshStats = async () => {
+    if (!appUser) return;
+    try {
+      const stats = await getUserStats(appUser.uid);
+      setMockUser(prev => ({
+        ...prev,
+        stats: stats,
+      }));
+    } catch (error) {
+      console.error('Error refreshing stats:', error);
+    }
+  };
+
+  // Listen for artwork changes to refresh stats
+  useEffect(() => {
+    const handleArtworkChanged = () => {
+      refreshStats();
+    };
+    
+    window.addEventListener('artwork-published', handleArtworkChanged);
+    window.addEventListener('artwork-deleted', handleArtworkChanged);
+    
+    return () => {
+      window.removeEventListener('artwork-published', handleArtworkChanged);
+      window.removeEventListener('artwork-deleted', handleArtworkChanged);
+    };
   }, [appUser]);
 
   // Sync appUser avatar and banner changes to local state
@@ -376,7 +480,7 @@ const Portfolio: React.FC = () => {
   };
 
   return (
-    <Layout onLogout={handleLogout} pageTitle="Portfolio">
+    <div>
       <PortfolioProvider>
         <div style={styles.container}>
           <div style={styles.content}>
@@ -393,6 +497,8 @@ const Portfolio: React.FC = () => {
               onBannerUpdate={handleBannerUpdate}
               onAvatarUpdate={handleAvatarUpdate}
               isOwner={true}
+              onFollowersClick={handleFollowersClick}
+              onFollowingClick={handleFollowingClick}
             />
             
             <div style={styles.tabSection}>
@@ -459,8 +565,19 @@ const Portfolio: React.FC = () => {
             </div>
           </div>
         )}
+        
+        {/* Followers/Following Modal */}
+        <FollowersModal
+          isOpen={followersModal.isOpen}
+          onClose={handleCloseFollowersModal}
+          type={followersModal.type}
+          users={followersModal.users}
+          isLoading={followersModal.isLoading}
+          onRemoveFollower={handleRemoveFollower}
+          onUnfollow={handleUnfollow}
+        />
       </PortfolioProvider>
-    </Layout>
+    </div>
   );
 };
 

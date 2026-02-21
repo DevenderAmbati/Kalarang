@@ -618,6 +618,14 @@
     gap: 2rem;
   }
   
+  .upload-section > *:first-child {
+    order: 1;
+  }
+  
+  .upload-section > *:last-child {
+    order: 2;
+  }
+  
   .upload-dropzone {
     order: 1;
   }

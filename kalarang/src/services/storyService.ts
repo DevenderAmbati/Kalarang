@@ -128,6 +128,54 @@ export async function getActiveStories(): Promise<Story[]> {
 }
 
 /**
+ * Get active stories from followed artists only
+ */
+export async function getActiveStoriesFromFollowing(followingArtistIds: string[]): Promise<Story[]> {
+  // If not following anyone, return empty array
+  if (!followingArtistIds || followingArtistIds.length === 0) {
+    return [];
+  }
+
+  const now = Timestamp.now();
+  const storiesRef = collection(db, "stories");
+  
+  // Firestore has a limit of 30 items in 'in' queries, so we need to batch if following more
+  const batchSize = 30;
+  const batches: string[][] = [];
+  
+  for (let i = 0; i < followingArtistIds.length; i += batchSize) {
+    batches.push(followingArtistIds.slice(i, i + batchSize));
+  }
+  
+  const allStories: Story[] = [];
+  
+  for (const batch of batches) {
+    try {
+      const q = query(
+        storiesRef,
+        where("expiresAt", ">", now),
+        where("artistId", "in", batch),
+        limit(50)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach((doc) => {
+        allStories.push(doc.data() as Story);
+      });
+    } catch (error) {
+      console.error('Error fetching stories batch:', error);
+    }
+  }
+  
+  // Sort all stories by creation time
+  return allStories.sort((a, b) => {
+    const aCreated = a.createdAt instanceof Timestamp ? a.createdAt.toMillis() : 0;
+    const bCreated = b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : 0;
+    return bCreated - aCreated;
+  });
+}
+
+/**
  * Get stories by user ID
  */
 export async function getUserStories(artistId: string): Promise<Story[]> {

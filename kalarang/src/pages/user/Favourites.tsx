@@ -29,6 +29,8 @@ const FavoriteArtworkCard: React.FC<FavoriteArtworkCardProps> = ({
   isRemoving = false,
   currentUserId
 }) => {
+  const navigate = useNavigate();
+
   const handleCardClick = () => {
     if (!isRemoving) {
       onArtworkClick(artwork.id);
@@ -39,7 +41,10 @@ const FavoriteArtworkCard: React.FC<FavoriteArtworkCardProps> = ({
     e.stopPropagation();
     if (artwork.artistId) {
       const isOwnProfile = artwork.artistId === currentUserId;
-      window.location.href = isOwnProfile ? '/portfolio' : `/portfolio/${artwork.artistId}`;
+      if (!isOwnProfile) {
+        sessionStorage.setItem('artworkSourceRoute', '/favourites');
+      }
+      navigate(isOwnProfile ? '/portfolio' : `/portfolio/${artwork.artistId}`);
     }
   };
 
