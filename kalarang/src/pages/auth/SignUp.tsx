@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MdHome, MdEmail, MdLock, MdPerson } from 'react-icons/md';
+import { MdHome, MdEmail, MdLock, MdPerson, MdCheckCircle, MdCancel } from 'react-icons/md';
 import { FaGoogle } from 'react-icons/fa';
 import Lottie from 'lottie-react';
 import { toast } from 'react-toastify';
 import './login.css';
+import './reset-password.css';
 import { signup, signInWithGoogle } from "../../services/authService";
 
 // Import all animations
@@ -36,6 +37,16 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
   const [selectedAnimationIndex, setSelectedAnimationIndex] = useState<number>(-1);
   const lottieRef = useRef<any>(null);
 
+  // Password validation states
+  const [validations, setValidations] = useState({
+    minLength: false,
+    hasUppercase: false,
+    hasLowercase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+    passwordsMatch: false,
+  });
+
   // Array of animations
   const animations = [
     africanAmericanArt,
@@ -55,6 +66,26 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
       }, 100);
     }
   }, [selectedAnimationIndex]);
+
+  useEffect(() => {
+    // Validate password in real-time
+    const minLength = formData.password.length >= 8;
+    const hasUppercase = /[A-Z]/.test(formData.password);
+    const hasLowercase = /[a-z]/.test(formData.password);
+    const hasNumber = /[0-9]/.test(formData.password);
+    const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password);
+    const passwordsMatch = formData.password.length > 0 && formData.confirmPassword.length > 0 && formData.password === formData.confirmPassword;
+
+    setValidations({
+      minLength,
+      hasUppercase,
+      hasLowercase,
+      hasNumber,
+      hasSpecialChar,
+      passwordsMatch,
+    });
+  }, [formData.password, formData.confirmPassword]);
+
   // Email validation regex
   const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -65,8 +96,12 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
   const isFormValid = 
     formData.fullName.trim().length >= 2 &&
     isValidEmail(formData.email) && 
-    formData.password.length >= 6 &&
-    formData.password === formData.confirmPassword &&
+    validations.minLength &&
+    validations.hasUppercase &&
+    validations.hasLowercase &&
+    validations.hasNumber &&
+    validations.hasSpecialChar &&
+    validations.passwordsMatch &&
     userType !== '' &&
     agreedToTerms;
 
@@ -240,7 +275,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
   }
 
   return (
-    <div className="login-right-section" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', width: '100%', position: 'relative' }}>
+    <div className="login-right-section" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', width: '100%', position: 'relative', padding: '3rem 0' }}>
       {/* Decorative geometric background shapes */}
       <div className="login-bg-shape-1"></div>
       <div className="login-bg-shape-2"></div>
@@ -252,7 +287,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
       <div className="login-bg-dot-pattern"></div>
       
       {/* Sign Up Form Section */}
-      <div style={{ maxWidth: '500px', width: '100%', zIndex: 10, maxHeight: '100vh', height: '100%'}}>
+      <div style={{ maxWidth: '500px', width: '100%', zIndex: 10, margin: '2rem 0' }}>
         {/* Back to Home Button */}
         <button 
           className="login-home-button"
@@ -472,11 +507,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
                   {showPassword ? '👁️' : '👁️‍🗨️'}
                 </button>
               </div>
-              {formData.password && formData.password.length < 6 && (
-                <p style={{ fontSize: '0.75rem', color: 'var(--color-error)', marginTop: '0.25rem' }}>
-                  Password must be at least 6 characters
-                </p>
-              )}
+
             </div>
 
             <div className="login-input-group" style={{ marginBottom: '0rem' }}>
@@ -501,12 +532,66 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp }) => {
                   {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
                 </button>
               </div>
-              {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                <p style={{ fontSize: '0.75rem', color: 'var(--color-error)', marginTop: '0.25rem' }}>
-                  Passwords do not match
-                </p>
-              )}
             </div>
+
+            {/* Password Requirements */}
+            {formData.password && (
+              <div className="password-requirements" style={{ marginBottom: '1rem' }}>
+                <div className="requirements-title">Password must contain:</div>
+                <div className="requirements-list">
+                  <div className={`requirement-item ${validations.minLength ? 'valid' : ''}`}>
+                    {validations.minLength ? (
+                      MdCheckCircle({ className: "requirement-icon valid" })
+                    ) : (
+                      MdCancel({ className: "requirement-icon invalid" })
+                    )}
+                    <span>At least 8 characters</span>
+                  </div>
+                  <div className={`requirement-item ${validations.hasUppercase ? 'valid' : ''}`}>
+                    {validations.hasUppercase ? (
+                      MdCheckCircle({ className: "requirement-icon valid" })
+                    ) : (
+                      MdCancel({ className: "requirement-icon invalid" })
+                    )}
+                    <span>One uppercase letter (A-Z)</span>
+                  </div>
+                  <div className={`requirement-item ${validations.hasLowercase ? 'valid' : ''}`}>
+                    {validations.hasLowercase ? (
+                      MdCheckCircle({ className: "requirement-icon valid" })
+                    ) : (
+                      MdCancel({ className: "requirement-icon invalid" })
+                    )}
+                    <span>One lowercase letter (a-z)</span>
+                  </div>
+                  <div className={`requirement-item ${validations.hasNumber ? 'valid' : ''}`}>
+                    {validations.hasNumber ? (
+                      MdCheckCircle({ className: "requirement-icon valid" })
+                    ) : (
+                      MdCancel({ className: "requirement-icon invalid" })
+                    )}
+                    <span>One number (0-9)</span>
+                  </div>
+                  <div className={`requirement-item ${validations.hasSpecialChar ? 'valid' : ''}`}>
+                    {validations.hasSpecialChar ? (
+                      MdCheckCircle({ className: "requirement-icon valid" })
+                    ) : (
+                      MdCancel({ className: "requirement-icon invalid" })
+                    )}
+                    <span>One special character (!@#$%...)</span>
+                  </div>
+                  {formData.confirmPassword && (
+                    <div className={`requirement-item ${validations.passwordsMatch ? 'valid' : ''}`}>
+                      {validations.passwordsMatch ? (
+                        MdCheckCircle({ className: "requirement-icon valid" })
+                      ) : (
+                        MdCancel({ className: "requirement-icon invalid" })
+                      )}
+                      <span>Passwords match</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="login-remember-forgot" style={{ marginBottom: '0rem', marginTop: '0.25rem' }}>
               <label className="login-checkbox-label">

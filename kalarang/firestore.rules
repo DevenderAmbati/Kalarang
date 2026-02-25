@@ -58,6 +58,14 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == userId; // Users can only write their own views
     }
     
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.recipientId; // Users can only read their own notifications
+      allow create: if request.auth != null; // Any authenticated user can create notifications
+      allow update: if request.auth != null && request.auth.uid == resource.data.recipientId; // Only recipient can update (mark as read)
+      allow delete: if request.auth != null && request.auth.uid == resource.data.recipientId; // Only recipient can delete
+    }
+    
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

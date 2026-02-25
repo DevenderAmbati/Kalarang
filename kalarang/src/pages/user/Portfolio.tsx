@@ -10,7 +10,7 @@ import { logout } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
 import { PortfolioProvider } from '../../context/PortfolioContext';
 import { usePublishedWorks, useGalleryWorks } from '../../hooks/useCachedData';
-import { getUserProfile, updateUserBanner, updateUserAvatar, updateUserProfile, getUserStats, getFollowersList, getFollowingList } from '../../services/userService';
+import { getUserProfile, updateUserBanner, updateUserAvatar, updateUserProfile, getUserStats, getFollowersList, getFollowingList, subscribeToUserStats } from '../../services/userService';
 import { unfollowArtist } from '../../services/interactionService';
 import { toast } from 'react-toastify';
 import { Artwork } from '../../types/artwork';
@@ -229,16 +229,13 @@ const Portfolio: React.FC = () => {
       try {
         const profile = await getUserProfile(appUser.uid);
         
-        // Fetch real-time stats
-        const stats = await getUserStats(appUser.uid);
-        
         if (profile) {
           setMockUser({
             name: profile.name || appUser.name,
             username: profile.username,
             avatar: profile.avatar || 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=120&h=120&fit=crop&crop=face',
             bannerImage: profile.bannerImage || '/logo.jpeg',
-            stats: stats,
+            stats: { followers: 0, artworks: 0, following: 0 }, // Will be updated by real-time subscription
           });
 
           // Update profile data state
@@ -269,18 +266,37 @@ const Portfolio: React.FC = () => {
     loadUserProfile();
   }, [appUser]);
 
-  // Function to refresh stats
-  const refreshStats = async () => {
+  // Real-time stats subscription
+  useEffect(() => {
     if (!appUser) return;
-    try {
-      const stats = await getUserStats(appUser.uid);
-      setMockUser(prev => ({
-        ...prev,
-        stats: stats,
-      }));
-    } catch (error) {
-      console.error('Error refreshing stats:', error);
-    }
+
+    console.log('[Real-time] Subscribing to user stats:', appUser.uid);
+
+    const unsubscribe = subscribeToUserStats(
+      appUser.uid,
+      (stats) => {
+        console.log('[Real-time] Received stats update:', stats);
+        setMockUser(prev => ({
+          ...prev,
+          stats: stats,
+        }));
+      },
+      (error) => {
+        console.error('[Real-time] Stats subscription error:', error);
+      }
+    );
+
+    // CRITICAL: Cleanup subscription
+    return () => {
+      console.log('[Real-time] Unsubscribing from user stats');
+      unsubscribe();
+    };
+  }, [appUser?.uid]);
+
+  // Function to refresh stats (now handled by real-time subscription)
+  const refreshStats = async () => {
+    // Stats are now updated automatically via real-time subscription
+    console.log('[Real-time] Stats refresh requested (automatic via subscription)');
   };
 
   // Listen for artwork changes to refresh stats

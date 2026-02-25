@@ -14,6 +14,8 @@ import {
   Timestamp,
   updateDoc,
   arrayUnion,
+  onSnapshot,
+  Unsubscribe,
 } from "firebase/firestore";
 
 export interface Story {
@@ -128,16 +130,36 @@ export async function getActiveStories(): Promise<Story[]> {
 }
 
 /**
- * Get active stories from followed artists only
+ * Get active stories from followed artists only (optionally including current user's stories)
  */
-export async function getActiveStoriesFromFollowing(followingArtistIds: string[]): Promise<Story[]> {
-  // If not following anyone, return empty array
-  if (!followingArtistIds || followingArtistIds.length === 0) {
-    return [];
-  }
-
+export async function getActiveStoriesFromFollowing(followingArtistIds: string[], currentUserId?: string): Promise<Story[]> {
   const now = Timestamp.now();
   const storiesRef = collection(db, "stories");
+  const allStories: Story[] = [];
+  
+  // First, fetch current user's own stories if userId provided
+  if (currentUserId) {
+    try {
+      const userStoriesQuery = query(
+        storiesRef,
+        where("artistId", "==", currentUserId),
+        where("expiresAt", ">", now),
+        limit(50)
+      );
+      
+      const userSnapshot = await getDocs(userStoriesQuery);
+      userSnapshot.forEach((doc) => {
+        allStories.push(doc.data() as Story);
+      });
+    } catch (error) {
+      console.error('Error fetching user own stories:', error);
+    }
+  }
+  
+  // If not following anyone, return only user's own stories
+  if (!followingArtistIds || followingArtistIds.length === 0) {
+    return allStories;
+  }
   
   // Firestore has a limit of 30 items in 'in' queries, so we need to batch if following more
   const batchSize = 30;
@@ -147,14 +169,12 @@ export async function getActiveStoriesFromFollowing(followingArtistIds: string[]
     batches.push(followingArtistIds.slice(i, i + batchSize));
   }
   
-  const allStories: Story[] = [];
-  
   for (const batch of batches) {
     try {
       const q = query(
         storiesRef,
-        where("expiresAt", ">", now),
         where("artistId", "in", batch),
+        where("expiresAt", ">", now),
         limit(50)
       );
       
@@ -162,13 +182,42 @@ export async function getActiveStoriesFromFollowing(followingArtistIds: string[]
       querySnapshot.forEach((doc) => {
         allStories.push(doc.data() as Story);
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching stories batch:', error);
+      
+      // Fallback: if index is not ready, fetch all stories for these artists and filter client-side
+      if (error?.code === 'failed-precondition' || error?.message?.includes('index')) {
+        console.log('Index not ready, using fallback query...');
+        try {
+          // Simple query without compound index
+          const fallbackQuery = query(
+            storiesRef,
+            where("artistId", "in", batch),
+            limit(50)
+          );
+          
+          const querySnapshot = await getDocs(fallbackQuery);
+          querySnapshot.forEach((doc) => {
+            const story = doc.data() as Story;
+            // Filter expired stories client-side
+            if (story.expiresAt && story.expiresAt.toMillis() > now.toMillis()) {
+              allStories.push(story);
+            }
+          });
+        } catch (fallbackError) {
+          console.error('Fallback query also failed:', fallbackError);
+        }
+      }
     }
   }
   
+  // Remove duplicates (in case user is in their own following list)
+  const uniqueStories = Array.from(
+    new Map(allStories.map(story => [story.id, story])).values()
+  );
+  
   // Sort all stories by creation time
-  return allStories.sort((a, b) => {
+  return uniqueStories.sort((a, b) => {
     const aCreated = a.createdAt instanceof Timestamp ? a.createdAt.toMillis() : 0;
     const bCreated = b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : 0;
     return bCreated - aCreated;
@@ -308,4 +357,133 @@ export async function getViewedStories(userId: string): Promise<string[]> {
     console.error('Error getting viewed stories:', error);
     return [];
   }
+}
+
+// ==================== REAL-TIME LISTENERS ====================
+
+/**
+ * Subscribe to real-time updates for all active stories
+ * Returns unsubscribe function - MUST call it to cleanup
+ */
+export function subscribeToActiveStories(
+  onUpdate: (stories: Story[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  const now = Timestamp.now();
+  const storiesRef = collection(db, "stories");
+  
+  const q = query(
+    storiesRef,
+    where("expiresAt", ">", now),
+    limit(50)
+  );
+  
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const stories: Story[] = [];
+      snapshot.forEach((doc) => {
+        stories.push(doc.data() as Story);
+      });
+      
+      // Sort in memory
+      const sortedStories = stories.sort((a, b) => {
+        const aExpires = a.expiresAt instanceof Timestamp ? a.expiresAt.toMillis() : 0;
+        const bExpires = b.expiresAt instanceof Timestamp ? b.expiresAt.toMillis() : 0;
+        if (aExpires !== bExpires) return bExpires - aExpires;
+        
+        const aCreated = a.createdAt instanceof Timestamp ? a.createdAt.toMillis() : 0;
+        const bCreated = b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : 0;
+        return bCreated - aCreated;
+      });
+      
+      onUpdate(sortedStories);
+    },
+    (error) => {
+      console.error('Error in active stories subscription:', error);
+      if (onError) onError(error as Error);
+    }
+  );
+}
+
+/**
+ * Subscribe to real-time updates for stories from followed artists
+ * Returns unsubscribe function - MUST call it to cleanup
+ */
+export function subscribeToFollowingStories(
+  followingArtistIds: string[],
+  currentUserId: string | undefined,
+  onUpdate: (stories: Story[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  const now = Timestamp.now();
+  const storiesRef = collection(db, "stories");
+  const unsubscribers: Unsubscribe[] = [];
+  const allStories = new Map<string, Story>();
+  
+  const emitUpdate = () => {
+    const stories = Array.from(allStories.values());
+    const sortedStories = stories.sort((a, b) => {
+      const aCreated = a.createdAt instanceof Timestamp ? a.createdAt.toMillis() : 0;
+      const bCreated = b.createdAt instanceof Timestamp ? b.createdAt.toMillis() : 0;
+      return bCreated - aCreated;
+    });
+    onUpdate(sortedStories);
+  };
+  
+  // Subscribe to current user's own stories if provided
+  if (currentUserId) {
+    const userStoriesQuery = query(
+      storiesRef,
+      where("artistId", "==", currentUserId),
+      where("expiresAt", ">", now),
+      limit(50)
+    );
+    
+    unsubscribers.push(
+      onSnapshot(userStoriesQuery, (snapshot) => {
+        snapshot.forEach((doc) => {
+          allStories.set(doc.id, doc.data() as Story);
+        });
+        emitUpdate();
+      }, onError)
+    );
+  }
+  
+  // Subscribe to followed artists' stories (batch if needed)
+  if (followingArtistIds && followingArtistIds.length > 0) {
+    const batchSize = 30;
+    const batches: string[][] = [];
+    
+    for (let i = 0; i < followingArtistIds.length; i += batchSize) {
+      batches.push(followingArtistIds.slice(i, i + batchSize));
+    }
+    
+    batches.forEach((batch) => {
+      const q = query(
+        storiesRef,
+        where("artistId", "in", batch),
+        where("expiresAt", ">", now),
+        limit(50)
+      );
+      
+      unsubscribers.push(
+        onSnapshot(
+          q,
+          (snapshot) => {
+            snapshot.forEach((doc) => {
+              allStories.set(doc.id, doc.data() as Story);
+            });
+            emitUpdate();
+          },
+          onError
+        )
+      );
+    });
+  }
+  
+  // Return combined unsubscribe function
+  return () => {
+    unsubscribers.forEach(unsub => unsub());
+  };
 }

@@ -67,7 +67,7 @@ export const verifyOTP = async (otp: string): Promise<string> => {
     throw new Error('Verification failed');
   } catch (error: any) {
     console.error('❌ Error verifying OTP:', error);
-    throw error; // Surface actual Firebase error
+    throw error;
   }
 };
 

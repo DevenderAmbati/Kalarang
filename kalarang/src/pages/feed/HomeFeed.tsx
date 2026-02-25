@@ -17,9 +17,10 @@ import { toast } from 'react-toastify';
 import artAnimation from '../../animations/no content.json';
 import africanArtAnimation from '../../animations/African American Art.json';
 import { cache, cacheKeys } from '../../utils/cache';
-import { getActiveStories, getActiveStoriesFromFollowing, Story as StoryType, groupStoriesByUser, GroupedStory, getViewedStories, markStoriesAsViewed, deleteStory } from '../../services/storyService';
-import { getFollowingArtistIds } from '../../services/userService';
+import { getActiveStories, getActiveStoriesFromFollowing, Story as StoryType, groupStoriesByUser, GroupedStory, getViewedStories, markStoriesAsViewed, deleteStory, subscribeToActiveStories, subscribeToFollowingStories } from '../../services/storyService';
+import { getFollowingArtistIds, getUserProfile } from '../../services/userService';
 import ConfirmModal from '../../components/Modals/ConfirmModal';
+import ReachOutModal from '../../components/Modals/ReachOutModal';
 import './homeFeed.css';
 
 interface Story {
@@ -53,6 +54,11 @@ const HomeFeed: React.FC = () => {
     isOpen: false,
     storyId: '',
   });
+
+  // Reach out modal state
+  const [reachOutModalOpen, setReachOutModalOpen] = useState(false);
+  const [artistEmail, setArtistEmail] = useState('');
+  const [artistWhatsApp, setArtistWhatsApp] = useState<string | undefined>(undefined);
 
   // Infinite scroll state
   const [artworks, setArtworks] = useState<Artwork[]>([]);
@@ -301,77 +307,80 @@ const HomeFeed: React.FC = () => {
   }, [selectedStory, currentStoryIndex, isPaused]);
 
   // Fetch stories - refetch when component mounts or becomes visible
-  const fetchStories = async (forceRefresh = false) => {
+  // Real-time stories subscription
+  useEffect(() => {
     // Wait for followingArtistIds to be loaded if user is logged in
     if (followingArtistIds === null) return;
 
-    // Try to get from cache first (unless forced refresh)
-    if (!forceRefresh) {
-      const cacheKey = appUser?.uid 
-        ? cacheKeys.stories(appUser.uid) 
-        : cacheKeys.stories();
-      const cached = cache.get<GroupedStory[]>(cacheKey);
-      
-      if (cached.exists && cached.data) {
-        console.log('[Cache] Loading stories from cache');
-        setGroupedStories(cached.data);
-        setLoadingStories(false);
-        
-        // If cache is stale, fetch fresh data in background
-        if (cached.isStale) {
-          console.log('[Cache] Stories cache is stale, refreshing in background');
-          try {
-            const activeStories = appUser?.uid && followingArtistIds.length > 0
-              ? await getActiveStoriesFromFollowing(followingArtistIds)
-              : await getActiveStories();
-            const grouped = groupStoriesByUser(activeStories, appUser?.uid);
-            setGroupedStories(grouped);
-            
-            // Update cache
-            cache.set(
-              cacheKey,
-              grouped,
-              1 * 60 * 1000, // 1 minute stale time (stories should be fresh)
-              3 * 60 * 1000  // 3 minutes cache time
-            );
-          } catch (error) {
-            console.error('Error refreshing stories:', error);
-          }
+    setLoadingStories(true);
+    console.log('[Real-time] Subscribing to stories');
+
+    let unsubscribe: (() => void) | undefined;
+
+    if (appUser?.uid) {
+      // Logged in: subscribe to own stories + following artists' stories
+      unsubscribe = subscribeToFollowingStories(
+        followingArtistIds,
+        appUser.uid,
+        (stories) => {
+          console.log('[Real-time] Received stories update:', stories.length);
+          const grouped = groupStoriesByUser(stories, appUser.uid);
+          setGroupedStories(grouped);
+          setLoadingStories(false);
+        },
+        (error) => {
+          console.error('[Real-time] Stories subscription error:', error);
+          setLoadingStories(false);
         }
-        return;
-      }
+      );
+    } else {
+      // Not logged in: subscribe to all public stories
+      unsubscribe = subscribeToActiveStories(
+        (stories) => {
+          console.log('[Real-time] Received stories update:', stories.length);
+          const grouped = groupStoriesByUser(stories, undefined);
+          setGroupedStories(grouped);
+          setLoadingStories(false);
+        },
+        (error) => {
+          console.error('[Real-time] Stories subscription error:', error);
+          setLoadingStories(false);
+        }
+      );
     }
-    
-    // No cache or forced refresh, fetch fresh data
+
+    // CRITICAL: Cleanup subscription
+    return () => {
+      if (unsubscribe) {
+        console.log('[Real-time] Unsubscribing from stories');
+        unsubscribe();
+      }
+    };
+  }, [followingArtistIds, appUser?.uid]);
+
+  const fetchStories = async (forceRefresh = false) => {
+    // Real-time updates handle this automatically now
+    console.log('[Real-time] fetchStories called but using real-time subscription');
+    return;
+  };
+
+  const fetchStoriesLegacy = async (forceRefresh = false) => {
+    // Keep legacy function for reference but not used
+    if (followingArtistIds === null) return;
+
     setLoadingStories(true);
     try {
       console.log('[API] Fetching fresh stories data');
       
-      // Only fetch if user is following artists
       let activeStories: StoryType[] = [];
-      if (appUser?.uid && followingArtistIds.length === 0) {
-        // Not following anyone, show empty stories
-        activeStories = [];
+      if (appUser?.uid) {
+        activeStories = await getActiveStoriesFromFollowing(followingArtistIds, appUser.uid);
       } else {
-        activeStories = appUser?.uid && followingArtistIds.length > 0
-          ? await getActiveStoriesFromFollowing(followingArtistIds)
-          : await getActiveStories();
+        activeStories = await getActiveStories();
       }
       
-      // Group stories by user (Instagram-style) with current user first
       const grouped = groupStoriesByUser(activeStories, appUser?.uid);
       setGroupedStories(grouped);
-      
-      // Store in cache
-      const cacheKey = appUser?.uid 
-        ? cacheKeys.stories(appUser.uid) 
-        : cacheKeys.stories();
-      cache.set(
-        cacheKey,
-        grouped,
-        1 * 60 * 1000, // 1 minute stale time (stories should be fresh)
-        3 * 60 * 1000  // 3 minutes cache time
-      );
     } catch (error) {
       console.error('Error fetching stories:', error);
     } finally {
@@ -394,6 +403,12 @@ const HomeFeed: React.FC = () => {
   // Fetch stories when followingArtistIds are loaded
   useEffect(() => {
     if (followingArtistIds !== null) {
+      // Clear cache to ensure fresh data
+      if (appUser?.uid) {
+        cache.invalidate(cacheKeys.stories(appUser.uid));
+      } else {
+        cache.invalidate(cacheKeys.stories());
+      }
       fetchStories();
     }
   }, [followingArtistIds]);
@@ -473,7 +488,7 @@ const HomeFeed: React.FC = () => {
     return [...currentUserStories, ...sortedOthers];
   }, [groupedStories, viewedStories, appUser?.uid]);
 
-  const handleStoryClick = (artistId: string, userStories: Story[]) => {
+  const handleStoryClick = async (artistId: string, userStories: Story[]) => {
     setCurrentUserStories(userStories);
     
     // Find first unviewed story, or start from beginning if all viewed
@@ -482,7 +497,20 @@ const HomeFeed: React.FC = () => {
     
     setCurrentStoryIndex(startIndex);
     setSelectedStory(userStories[startIndex]);
-    setCurrentSessionViewed(new Set([userStories[startIndex].id]));
+    
+    // Mark as viewed immediately and save to database
+    const storyId = userStories[startIndex].id;
+    setCurrentSessionViewed(new Set([storyId]));
+    setViewedStories(prev => {
+      const newSet = new Set(prev);
+      newSet.add(storyId);
+      return newSet;
+    });
+    
+    // Save to database immediately
+    if (appUser?.uid) {
+      await markStoriesAsViewed(appUser.uid, [storyId]);
+    }
   };
 
   const handleCloseStory = async () => {
@@ -572,15 +600,56 @@ const HomeFeed: React.FC = () => {
     }
   };
 
-  const handlePreviousStory = () => {
+  // Handle reach out to artist from story
+  const handleReachOut = async () => {
+    if (!selectedStory || !appUser) {
+      toast.error('Please log in to reach out to artists');
+      return;
+    }
+
+    // Pause the timer while modal is open
+    setIsPaused(true);
+
+    try {
+      // Fetch artist profile to get email and WhatsApp
+      const artistProfile = await getUserProfile(selectedStory.artistId);
+      
+      if (!artistProfile || !artistProfile.email) {
+        toast.error('Unable to fetch artist contact information');
+        setIsPaused(false);
+        return;
+      }
+
+      setArtistEmail(artistProfile.email);
+      setArtistWhatsApp(artistProfile.whatsappNumber);
+      setReachOutModalOpen(true);
+    } catch (error) {
+      console.error('[HomeFeed] Error fetching artist profile:', error);
+      toast.error('Failed to load artist information');
+      setIsPaused(false);
+    }
+  };
+
+  const handlePreviousStory = async () => {
     if (!selectedStory || currentUserStories.length === 0) return;
     
     if (currentStoryIndex > 0) {
       // Go to previous story of same user
       const newIndex = currentStoryIndex - 1;
+      const story = currentUserStories[newIndex];
       setCurrentStoryIndex(newIndex);
-      setSelectedStory(currentUserStories[newIndex]);
-      setCurrentSessionViewed(prev => new Set(prev).add(currentUserStories[newIndex].id));
+      setSelectedStory(story);
+      setCurrentSessionViewed(prev => new Set(prev).add(story.id));
+      setViewedStories(prev => {
+        const newSet = new Set(prev);
+        newSet.add(story.id);
+        return newSet;
+      });
+      
+      // Save to database immediately
+      if (appUser?.uid) {
+        await markStoriesAsViewed(appUser.uid, [story.id]);
+      }
     } else {
       // Go to previous user's last story
       const currentUserIndex = groupedStories.findIndex(g => g.artistId === selectedStory.artistId);
@@ -598,22 +667,44 @@ const HomeFeed: React.FC = () => {
         }));
         setCurrentUserStories(prevUserStories);
         const lastIndex = prevUserStories.length - 1;
+        const story = prevUserStories[lastIndex];
         setCurrentStoryIndex(lastIndex);
-        setSelectedStory(prevUserStories[lastIndex]);
-        setCurrentSessionViewed(prev => new Set(prev).add(prevUserStories[lastIndex].id));
+        setSelectedStory(story);
+        setCurrentSessionViewed(prev => new Set(prev).add(story.id));
+        setViewedStories(prev => {
+          const newSet = new Set(prev);
+          newSet.add(story.id);
+          return newSet;
+        });
+        
+        // Save to database immediately
+        if (appUser?.uid) {
+          await markStoriesAsViewed(appUser.uid, [story.id]);
+        }
       }
     }
   };
 
-  const handleNextStory = () => {
+  const handleNextStory = async () => {
     if (!selectedStory || currentUserStories.length === 0) return;
     
     if (currentStoryIndex < currentUserStories.length - 1) {
       // Go to next story of same user
       const newIndex = currentStoryIndex + 1;
+      const story = currentUserStories[newIndex];
       setCurrentStoryIndex(newIndex);
-      setSelectedStory(currentUserStories[newIndex]);
-      setCurrentSessionViewed(prev => new Set(prev).add(currentUserStories[newIndex].id));
+      setSelectedStory(story);
+      setCurrentSessionViewed(prev => new Set(prev).add(story.id));
+      setViewedStories(prev => {
+        const newSet = new Set(prev);
+        newSet.add(story.id);
+        return newSet;
+      });
+      
+      // Save to database immediately
+      if (appUser?.uid) {
+        await markStoriesAsViewed(appUser.uid, [story.id]);
+      }
     } else {
       // Go to next user's first story
       const currentUserIndex = groupedStories.findIndex(g => g.artistId === selectedStory.artistId);
@@ -630,12 +721,23 @@ const HomeFeed: React.FC = () => {
           artistId: s.artistId,
         }));
         setCurrentUserStories(nextUserStories);
+        const story = nextUserStories[0];
         setCurrentStoryIndex(0);
-        setSelectedStory(nextUserStories[0]);
-        setCurrentSessionViewed(prev => new Set(prev).add(nextUserStories[0].id));
+        setSelectedStory(story);
+        setCurrentSessionViewed(prev => new Set(prev).add(story.id));
+        setViewedStories(prev => {
+          const newSet = new Set(prev);
+          newSet.add(story.id);
+          return newSet;
+        });
+        
+        // Save to database immediately
+        if (appUser?.uid) {
+          await markStoriesAsViewed(appUser.uid, [story.id]);
+        }
       } else {
         // Last story, close
-        handleCloseStory();
+        await handleCloseStory();
       }
     }
   };
@@ -703,7 +805,7 @@ const HomeFeed: React.FC = () => {
         await removeArtworkFromFavorites(appUser.uid, artworkId);
         toast.success('Removed from favorites');
       } else {
-        await saveArtworkToFavorites(appUser.uid, artworkId);
+        await saveArtworkToFavorites(appUser.uid, artworkId, appUser.name, appUser.avatar);
         toast.success('Saved to your favourites');
       }
       // Invalidate favorite artworks cache
@@ -823,6 +925,7 @@ const HomeFeed: React.FC = () => {
                     key={artwork.id}
                     id={parseInt(artwork.id) || 0}
                     artworkImage={artwork.images[0]}
+                    artworkImages={artwork.images}
                     artistAvatar={artwork.artistAvatar || '/artist.png'}
                     artistName={artwork.artistName}
                     artistId={artwork.artistId}
@@ -980,7 +1083,7 @@ const HomeFeed: React.FC = () => {
                         Delete Story
                       </button>
                     ) : (
-                      <button className="story-btn story-btn-secondary">
+                      <button className="story-btn story-btn-secondary" onClick={handleReachOut}>
                         Reach Out
                       </button>
                     )}
@@ -1002,6 +1105,28 @@ const HomeFeed: React.FC = () => {
         confirmText="Delete"
         cancelText="Cancel"
       />
+
+      {selectedStory && appUser && (
+        <ReachOutModal
+          isOpen={reachOutModalOpen}
+          onClose={() => {
+            setReachOutModalOpen(false);
+            setIsPaused(false);
+          }}
+          artistId={selectedStory.artistId}
+          artistName={selectedStory.name}
+          artistEmail={artistEmail}
+          artistAvatar={selectedStory.userIcon}
+          artistWhatsApp={artistWhatsApp}
+          artworkId={selectedStory.artworkId}
+          artworkTitle={selectedStory.artworkTitle}
+          artworkImage={selectedStory.image}
+          userId={appUser.uid}
+          userName={appUser.name}
+          userEmail={appUser.email}
+          userAvatar={appUser.avatar}
+        />
+      )}
     </>
   );
 };

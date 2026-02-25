@@ -1,65 +1,15 @@
 /* PublishedWorks Component Styles */
 
 .published-works-wrapper {
-  margin: 0px 0 0;
-  position: relative;
+  margin-top: -10px;
 }
 
 .published-works-container {
   width: 100%;
-  max-width: 100%;
-  overflow-x: hidden;
+  padding: 0;
   box-sizing: border-box;
 }
 
 .published-works-content {
-  max-width: 1200px;
-  margin: 0 auto;
   width: 100%;
-}
-
-/* Responsive Design */
-
-/* Large Desktop - 1440px and above */
-@media (min-width: 1440px) {
-  .published-works-container {
-    position: relative;
-  }
-  
-  .published-works-content {
-    margin-top: 0rem;
-  }
-}
-
-/* Desktop - 1024px to 1439px */
-@media (min-width: 1024px) and (max-width: 1439px) {
-  .published-works-container {
-    position: relative;
-  }
-  
-  .published-works-content {
-    margin-top: 0rem;
-  }
-}
-
-/* Tablet - 640px to 1023px */
-@media (min-width: 640px) and (max-width: 1023px) {
-  .published-works-container {
-    position: relative;
-  }
-  
-  .published-works-content {
-    margin-top: 0rem;
-  }
-}
-
-/* Mobile - below 640px */
-@media (max-width: 639px) {
-  .published-works-container {
-    position: relative;
-  }
-  
-  .published-works-content {
-    margin-top: 0rem;
-  }
 }

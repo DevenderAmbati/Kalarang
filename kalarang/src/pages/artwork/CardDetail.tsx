@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ArtworkDetail, { Artwork as ArtworkDetailType, Artist } from '../../components/Artwork/ArtworkDetail';
 import LoadingState from '../../components/State/LoadingState';
+import ReachOutModal from '../../components/Modals/ReachOutModal';
 import { useAuth } from '../../context/AuthContext';
 import { getArtwork, incrementArtworkViews } from '../../services/artworkService';
 import { useFavorites } from '../../hooks/useCachedData';
@@ -14,6 +15,7 @@ import {
   unfollowArtist, 
   isFollowingArtist
 } from '../../services/interactionService';
+import { getUserProfile } from '../../services/userService';
 import { toast } from 'react-toastify';
 import lineArt1Animation from '../../animations/Line art (1).json';
 
@@ -26,6 +28,9 @@ const CardDetail: React.FC = () => {
   const [artist, setArtist] = useState<Artist | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [reachOutModalOpen, setReachOutModalOpen] = useState(false);
+  const [artistEmail, setArtistEmail] = useState<string>('');
+  const [artistWhatsApp, setArtistWhatsApp] = useState<string | undefined>(undefined);
   
   const { data: favoriteIds, updateCache: updateFavoritesCache, refetch: refetchFavorites } = useFavorites(appUser?.uid);
 
@@ -97,13 +102,28 @@ const CardDetail: React.FC = () => {
 
       setArtwork(artworkDetail);
 
-      // Set up artist
+      // Set up artist and fetch full profile data
       const artistData: Artist = {
         id: fetchedArtwork.artistId,
         name: fetchedArtwork.artistName,
         avatar: fetchedArtwork.artistAvatar || 'https://i.pravatar.cc/150?img=1',
         isFollowing: false,
       };
+
+      // Fetch full artist profile to get email and WhatsApp
+      try {
+        const artistProfile = await getUserProfile(fetchedArtwork.artistId);
+        if (artistProfile) {
+          setArtistEmail(artistProfile.email);
+          setArtistWhatsApp(artistProfile.whatsappNumber);
+          console.log('[CardDetail] Artist profile loaded:', {
+            email: artistProfile.email,
+            hasWhatsApp: !!artistProfile.whatsappNumber
+          });
+        }
+      } catch (error) {
+        console.error('[CardDetail] Error fetching artist profile:', error);
+      }
 
       // Check if user is following artist and if artwork is in favorites
       if (appUser && appUser.uid !== fetchedArtwork.artistId) {
@@ -163,7 +183,7 @@ const CardDetail: React.FC = () => {
         await removeArtworkFromFavorites(appUser.uid, id);
         toast.success('Removed from favorites');
       } else {
-        await saveArtworkToFavorites(appUser.uid, id);
+        await saveArtworkToFavorites(appUser.uid, id, appUser.name, appUser.avatar);
         toast.success('Added to favorites');
       }
       // Invalidate favorite artworks cache
@@ -195,8 +215,22 @@ const CardDetail: React.FC = () => {
   };
 
   const handleReachOut = (artistId: string) => {
-    // TODO: Implement messaging system
-    toast.info('Messaging feature coming soon!');
+    if (!appUser) {
+      toast.error('Please log in to reach out to artists');
+      return;
+    }
+
+    if (appUser.uid === artistId) {
+      toast.info('You cannot reach out to yourself');
+      return;
+    }
+
+    if (!artistEmail) {
+      toast.error('Artist contact information not available');
+      return;
+    }
+
+    setReachOutModalOpen(true);
   };
 
   const handleFollow = async (artistId: string) => {
@@ -213,7 +247,7 @@ const CardDetail: React.FC = () => {
         setArtist({ ...artist, isFollowing: false });
         toast.success('Unfollowed artist');
       } else {
-        await followArtist(appUser.uid, artistId);
+        await followArtist(appUser.uid, artistId, appUser.name, appUser.avatar);
         setArtist({ ...artist, isFollowing: true });
         toast.success('Following artist');
       }
@@ -253,19 +287,40 @@ const CardDetail: React.FC = () => {
   }
 
   return (
-    <ArtworkDetail
-      artwork={artwork}
-      artist={artist}
-      currentUserAvatar={appUser?.email ? `https://ui-avatars.com/api/?name=${encodeURIComponent(appUser.name || appUser.email)}` : undefined}
-      onShare={handleShare}
-      onReachOut={handleReachOut}
-      onFollow={handleFollow}
-      onThumbnailClick={handleThumbnailClick}
-      onArtistClick={handleArtistClick}
-      onSave={handleLike}
-      isSaved={isSaved}
-      currentUserId={appUser?.uid}
-    />
+    <>
+      <ArtworkDetail
+        artwork={artwork}
+        artist={artist}
+        currentUserAvatar={appUser?.email ? `https://ui-avatars.com/api/?name=${encodeURIComponent(appUser.name || appUser.email)}` : undefined}
+        onShare={handleShare}
+        onReachOut={handleReachOut}
+        onFollow={handleFollow}
+        onThumbnailClick={handleThumbnailClick}
+        onArtistClick={handleArtistClick}
+        onSave={handleLike}
+        isSaved={isSaved}
+        currentUserId={appUser?.uid}
+      />
+
+      {appUser && artwork && artist && (
+        <ReachOutModal
+          isOpen={reachOutModalOpen}
+          onClose={() => setReachOutModalOpen(false)}
+          artistId={artist.id}
+          artistName={artist.name}
+          artistEmail={artistEmail}
+          artistAvatar={artist.avatar}
+          artistWhatsApp={artistWhatsApp}
+          artworkId={String(artwork.id)}
+          artworkTitle={artwork.title}
+          artworkImage={artwork.artworkImage}
+          userId={appUser.uid}
+          userName={appUser.name}
+          userEmail={appUser.email}
+          userAvatar={appUser.avatar}
+        />
+      )}
+    </>
   );
 };
 

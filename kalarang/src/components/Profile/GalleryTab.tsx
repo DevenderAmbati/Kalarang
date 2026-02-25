@@ -7,6 +7,7 @@ export interface GalleryImage {
   alt: string;
   aspectRatio?: number; // width/height ratio
   published?: boolean;
+  isCommissioned?: boolean;
 }
 
 export interface GalleryTabProps {
@@ -76,6 +77,11 @@ const GalleryTab: React.FC<GalleryTabProps> = ({ images, onImageClick, isOwnProf
               {isOwnProfile && image.published === false && (
                 <div className="gallery-unpublished-badge">
                   <span>Unpublished</span>
+                </div>
+              )}
+              {image.isCommissioned && (
+                <div className="gallery-commission-badge">
+                  <span>Commission Work</span>
                 </div>
               )}
               {isOwnProfile && <div className="gallery-tab-image-overlay" />}

@@ -160,7 +160,7 @@ const OtherUserPortfolio: React.FC = () => {
         setIsFollowing(false);
         toast.success('Unfollowed artist');
       } else {
-        await followArtist(appUser.uid, userId);
+        await followArtist(appUser.uid, userId, appUser.name, appUser.avatar);
         setIsFollowing(true);
         toast.success('Following artist');
       }

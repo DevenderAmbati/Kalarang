@@ -51,12 +51,12 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "expiresAt",
-          "order": "DESCENDING"
+          "fieldPath": "artistId",
+          "order": "ASCENDING"
         },
         {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
+          "fieldPath": "expiresAt",
+          "order": "ASCENDING"
         }
       ]
     },
@@ -64,10 +64,6 @@
       "collectionGroup": "stories",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "userId",
-          "order": "ASCENDING"
-        },
         {
           "fieldPath": "expiresAt",
           "order": "DESCENDING"
@@ -89,6 +85,38 @@
         {
           "fieldPath": "expiresAt",
           "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "recipientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "recipientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "isRead",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "ASCENDING"
         }
       ]
     }

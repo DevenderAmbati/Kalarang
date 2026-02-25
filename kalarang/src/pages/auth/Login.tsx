@@ -298,7 +298,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <input type="checkbox" className="login-checkbox" />
                 <span className="login-checkbox-text">Remember me</span>
               </label>
-              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/reset-password'); }} className="login-forgot-link">Forgot Password?</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); navigate('/forgot-password'); }} className="login-forgot-link">Forgot Password?</a>
             </div>
 
             {errorMessage && (

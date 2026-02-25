@@ -32,7 +32,16 @@ const ResetPassword: React.FC = () => {
     }
 
     try {
-      await sendPasswordResetEmail(auth, email);
+      // Use environment-based config
+      const baseUrl =
+        window.location.hostname.includes("staging")
+          ? "https://kalarang-staging.web.app"
+          : "https://kalarang.art";
+
+      await sendPasswordResetEmail(auth, email, {
+        url: `${baseUrl}/reset-password`,
+        handleCodeInApp: true
+      });
       
       setIsSubmitted(true);
       setSuccessMessage(' If an account exists, a password reset link has been sent to your email!');

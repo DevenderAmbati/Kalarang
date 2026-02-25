@@ -831,8 +831,8 @@ const CreateArtwork: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="button-group">
-            {/* Clear Draft Button - Only show for new artworks with data */}
-            {!editArtworkId && (formData.title || formData.description || images.length > 0) && (
+            {/* Clear Draft Button - Only show for new artworks with data that haven't been saved yet */}
+            {!editArtworkId && !savedArtworkId && (formData.title || formData.description || images.length > 0) && (
               <button
                 type="button"
                 className="button button-outline"

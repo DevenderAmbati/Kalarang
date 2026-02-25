@@ -8,6 +8,8 @@ import {
   query,
   where,
   getDocs,
+  onSnapshot,
+  Unsubscribe,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { AppUser } from "../types/user";
@@ -343,4 +345,61 @@ export async function searchUsers(searchQuery: string): Promise<Array<{
   });
 
   return matchingUsers;
+}
+
+// ==================== REAL-TIME LISTENERS ====================
+
+/**
+ * Subscribe to real-time user stats (followers, following, artworks)
+ * Returns unsubscribe function - MUST call it to cleanup
+ */
+export function subscribeToUserStats(
+  userId: string,
+  onUpdate: (stats: { followers: number; following: number; artworks: number }) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  const unsubscribers: Unsubscribe[] = [];
+  let currentStats = { followers: 0, following: 0, artworks: 0 };
+  
+  // Subscribe to followers
+  const followersQuery = query(
+    collection(db, "follows"),
+    where("artistId", "==", userId)
+  );
+  unsubscribers.push(
+    onSnapshot(followersQuery, (snapshot) => {
+      currentStats.followers = snapshot.docs.filter(doc => doc.data().followerId !== userId).length;
+      onUpdate({ ...currentStats });
+    }, onError)
+  );
+  
+  // Subscribe to following
+  const followingQuery = query(
+    collection(db, "follows"),
+    where("followerId", "==", userId)
+  );
+  unsubscribers.push(
+    onSnapshot(followingQuery, (snapshot) => {
+      currentStats.following = snapshot.docs.filter(doc => doc.data().artistId !== userId).length;
+      onUpdate({ ...currentStats });
+    }, onError)
+  );
+  
+  // Subscribe to artworks
+  const artworksQuery = query(
+    collection(db, "artworks"),
+    where("artistId", "==", userId),
+    where("published", "==", true)
+  );
+  unsubscribers.push(
+    onSnapshot(artworksQuery, (snapshot) => {
+      currentStats.artworks = snapshot.size;
+      onUpdate({ ...currentStats });
+    }, onError)
+  );
+  
+  // Return combined unsubscribe function
+  return () => {
+    unsubscribers.forEach(unsub => unsub());
+  };
 }

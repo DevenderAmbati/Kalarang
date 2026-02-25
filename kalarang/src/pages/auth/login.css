@@ -760,6 +760,25 @@
   transform: translateY(0);
 }
 
+.secondary-cta {
+  background: transparent;
+  border: 2px solid var(--color-primary);
+  color: var(--color-primary);
+  transition: all var(--transition-smooth);
+}
+
+.secondary-cta:hover {
+  background: var(--primary-alpha-10);
+  border-color: var(--color-primary-dark);
+  color: var(--color-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px var(--dark-alpha-5) !important;
+}
+
+.secondary-cta:active {
+  transform: translateY(0);
+}
+
 .social-btn {
   transition: all 0.3s ease;
 }

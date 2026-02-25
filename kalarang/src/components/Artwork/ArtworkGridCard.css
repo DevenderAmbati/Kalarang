@@ -10,11 +10,12 @@
   height: 100%;
   border: 1px solid rgba(47, 164, 169, 0.2);
   position: relative;
-  width: auto !important;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   /* Performance optimizations */
   will-change: transform;
   transform: translateZ(0);
-  width: 100%!important;
   backface-visibility: hidden;
 }
 

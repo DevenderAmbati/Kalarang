@@ -1,14 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import {
-  sendOTP,
-  verifyOTP,
-  saveWhatsAppNumber,
-  formatPhoneNumber,
-} from '../../services/whatsappOtp';
-import { RecaptchaVerifier } from 'firebase/auth';
-import { auth } from '../../firebase';
+import { db } from '../../firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { toast } from 'react-toastify';
 import './WhatsAppVerificationModal.css';
 
 interface WhatsAppVerificationModalProps {
@@ -16,7 +12,6 @@ interface WhatsAppVerificationModalProps {
   onClose: () => void;
   onVerified: (phoneNumber: string) => void;
 }
-
 
 const WhatsAppVerificationModal: React.FC<WhatsAppVerificationModalProps> = ({
   isOpen,
@@ -26,256 +21,161 @@ const WhatsAppVerificationModal: React.FC<WhatsAppVerificationModalProps> = ({
 
   const { appUser } = useAuth();
   const { theme } = useTheme();
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [confirmPhoneNumber, setConfirmPhoneNumber] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
-  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Initialize reCAPTCHA when modal opens
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Clean up existing verifier
-    if ((window as any).recaptchaVerifier) {
-      try {
-        (window as any).recaptchaVerifier.clear();
-      } catch (e) {
-        console.log('Error clearing previous reCAPTCHA:', e);
-      }
-      (window as any).recaptchaVerifier = null;
-    }
-
-    // Initialize reCAPTCHA with retry logic
-    const initializeRecaptcha = (attempt = 0) => {
-      const container = document.getElementById('recaptcha-container');
-      
-      if (!container) {
-        if (attempt < 10) {
-          // Retry up to 10 times with 100ms delay
-          setTimeout(() => initializeRecaptcha(attempt + 1), 100);
-        } else {
-          console.error('❌ reCAPTCHA container not found after multiple attempts');
-        }
-        return;
-      }
-
-      try {
-        const recaptchaVerifier = new RecaptchaVerifier(
-          auth,
-          'recaptcha-container',
-          {
-            size: 'invisible',
-            callback: () => {
-              console.log('✅ reCAPTCHA verified');
-            },
-            'expired-callback': () => {
-              console.log('⚠️ reCAPTCHA expired');
-            },
-          }
-        );
-
-        (window as any).recaptchaVerifier = recaptchaVerifier;
-        console.log('✅ reCAPTCHA initialized successfully');
-      } catch (error) {
-        console.error('❌ Error initializing reCAPTCHA:', error);
-      }
-    };
-
-    // Start initialization with a small delay
-    const timer = setTimeout(() => initializeRecaptcha(), 50);
-
-    // Cleanup on unmount or modal close
-    return () => {
-      clearTimeout(timer);
-      if ((window as any).recaptchaVerifier) {
-        try {
-          (window as any).recaptchaVerifier.clear();
-          (window as any).recaptchaVerifier = null;
-        } catch (e) {
-          console.log('Error cleaning up reCAPTCHA:', e);
-        }
-      }
-    };
-  }, [isOpen]);
-
-  const handleSendOTP = async () => {
+  const handleSave = async () => {
     setError('');
     
+    // Validate phone number
     if (!phoneNumber || phoneNumber.length !== 10) {
       setError('Please enter a valid 10-digit phone number');
       return;
     }
 
-    setLoading(true);
-    try {
-      const formattedNumber = formatPhoneNumber(phoneNumber, countryCode);
-      console.log('📱 Sending OTP to:', formattedNumber);
-      
-      await sendOTP(formattedNumber);
-      
-      console.log('✅ OTP sent successfully');
-      setStep('otp');
-    } catch (err: any) {
-      console.error('❌ Error sending OTP:', err);
-      setError(err.message || 'Failed to send OTP. Please try again.');
-    } finally {
-      setLoading(false);
+    // Validate confirmation
+    if (phoneNumber !== confirmPhoneNumber) {
+      setError('Phone numbers do not match');
+      return;
     }
-  };
 
-  const handleVerifyOTP = async () => {
-    setError('');
-    
-    if (!otp || otp.length !== 6) {
-      setError('Please enter a valid 6-digit OTP');
+    if (!appUser?.uid) {
+      setError('User not authenticated');
       return;
     }
 
     setLoading(true);
     try {
-      const verifiedNumber = await verifyOTP(otp);
+      const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+      console.log('💾 Saving WhatsApp number:', fullPhoneNumber);
       
-      if (appUser?.uid) {
-        await saveWhatsAppNumber(appUser.uid, verifiedNumber);
-        onVerified(verifiedNumber);
-        handleClose();
-      }
+      // Save to Firestore
+      const userRef = doc(db, 'users', appUser.uid);
+      await updateDoc(userRef, {
+        whatsappNumber: fullPhoneNumber,
+        whatsappVerified: false, // Not verified via OTP
+        whatsappAddedAt: new Date(),
+      });
+      
+      console.log('✅ WhatsApp number saved successfully');
+      
+      toast.success('WhatsApp number saved successfully!', {
+        position: 'top-center',
+        autoClose: 3000,
+      });
+      
+      onVerified(fullPhoneNumber);
+      handleClose();
     } catch (err: any) {
-      console.error('❌ Error verifying OTP:', err);
-      setError(err.message || 'Failed to verify OTP');
+      console.error('❌ Error saving WhatsApp number:', err);
+      setError(err.message || 'Failed to save WhatsApp number');
     } finally {
       setLoading(false);
     }
   };
 
   const handleClose = () => {
-    setStep('phone');
-    setPhoneNumber('');
-    setOtp('');
-    setError('');
     onClose();
   };
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={handleClose}>
-      {/* Invisible reCAPTCHA container */}
-      <div id="recaptcha-container"></div>
-      
       <div className={`modal-content ${theme}`} onClick={(e) => e.stopPropagation()}>
         <button className="modal-close" onClick={handleClose}>
           ×
         </button>
 
         <div className="modal-header">
-          <h2>Verify WhatsApp Number</h2>
-          <p className="modal-subtitle">
-            {step === 'phone'
-              ? 'Enter your WhatsApp number to receive an OTP via SMS'
-              : 'Enter the 6-digit OTP sent to your phone'}
-          </p>
+          <h2>Add WhatsApp Number</h2>
+        
         </div>
 
         <div className="modal-body">
-          {step === 'phone' ? (
-            <div className="phone-input-section">
-              <div className="phone-input-group">
-                <select
-                  className="country-code-select"
-                  value={countryCode}
-                  onChange={(e) => setCountryCode(e.target.value)}
-                  disabled={loading}
-                >
-                  <option value="+91">🇮🇳 +91</option>
-                  <option value="+1">🇺🇸 +1</option>
-                  <option value="+44">🇬🇧 +44</option>
-                  <option value="+61">🇦🇺 +61</option>
-                  <option value="+971">🇦🇪 +971</option>
-                </select>
-                <input
-                  type="tel"
-                  className="phone-input"
-                  placeholder="9876543210"
-                  value={phoneNumber}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '');
-                    if (value.length <= 10) {
-                      setPhoneNumber(value);
-                    }
-                  }}
-                  disabled={loading}
-                  maxLength={10}
-                />
-              </div>
-              
-              {error && <p className="error-message">{error}</p>}
-              
-              <button
-                className="primary-button"
-                onClick={handleSendOTP}
-                disabled={loading || phoneNumber.length !== 10}
+          <div className="phone-input-section">
+            <div className="phone-input-group">
+              <select
+                className="country-code-select"
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value)}
+                disabled={loading}
               >
-                {loading ? 'Sending...' : 'Send OTP'}
-              </button>
-
-              <div className="help-section">
-                <p className="help-text">
-                  💡 <strong>Common Issues:</strong>
-                </p>
-                <ol className="help-list">
-                  <li><strong>Phone Auth:</strong> Enable in <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer">Firebase Console</a> → Authentication → Sign-in method</li>
-                  <li><strong>Billing:</strong> Phone Auth requires Blaze (pay-as-you-go) plan</li>
-                  <li><strong>Testing:</strong> Add test numbers in Authentication → Settings → Phone numbers for testing</li>
-                  <li><strong>Domain:</strong> Ensure localhost is in authorized domains list</li>
-                </ol>
-              </div>
-            </div>
-          ) : (
-            <div className="otp-input-section">
+                <option value="+91">🇮🇳 +91</option>
+                <option value="+1">🇺🇸 +1</option>
+                <option value="+44">🇬🇧 +44</option>
+                <option value="+61">🇦🇺 +61</option>
+                <option value="+971">🇦🇪 +971</option>
+              </select>
               <input
-                type="text"
-                className="otp-input"
-                placeholder="Enter 6-digit OTP"
-                value={otp}
+                type="tel"
+                className="phone-input"
+                placeholder="Enter WhatsApp number"
+                value={phoneNumber}
                 onChange={(e) => {
                   const value = e.target.value.replace(/\D/g, '');
-                  if (value.length <= 6) {
-                    setOtp(value);
+                  if (value.length <= 10) {
+                    setPhoneNumber(value);
                   }
                 }}
                 disabled={loading}
-                maxLength={6}
+                maxLength={10}
               />
-              
-              {error && <p className="error-message">{error}</p>}
-              
-              <button
-                className="primary-button"
-                onClick={handleVerifyOTP}
-                disabled={loading || otp.length !== 6}
+            </div>
+
+            <div className="phone-input-group">
+              <select
+                className="country-code-select"
+                value={countryCode}
+                disabled
               >
-                {loading ? 'Verifying...' : 'Verify OTP'}
-              </button>
-              
-              <button
-                className="secondary-button"
-                onClick={() => {
-                  setStep('phone');
-                  setOtp('');
-                  setError('');
+                <option value={countryCode}>{countryCode}</option>
+              </select>
+              <input
+                type="tel"
+                className="phone-input"
+                placeholder="Confirm number"
+                value={confirmPhoneNumber}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '');
+                  if (value.length <= 10) {
+                    setConfirmPhoneNumber(value);
+                  }
                 }}
                 disabled={loading}
-              >
-                Change Number
-              </button>
+                maxLength={10}
+                style={{
+                  borderColor: confirmPhoneNumber && phoneNumber && confirmPhoneNumber !== phoneNumber.substring(0, confirmPhoneNumber.length) 
+                    ? '#f44336' 
+                    : undefined
+                }}
+              />
             </div>
-          )}
+            
+            {/* Real-time mismatch warning */}
+            {confirmPhoneNumber && phoneNumber && confirmPhoneNumber !== phoneNumber.substring(0, confirmPhoneNumber.length) && (
+              <p className="error-message" style={{ marginTop: '5px' }}>
+                Numbers do not match
+              </p>
+            )}
+            
+            {error && <p className="error-message">{error}</p>}
+            
+            <button
+              className="primary-button"
+              onClick={handleSave}
+              disabled={loading || phoneNumber.length !== 10 || confirmPhoneNumber.length !== 10}
+            >
+              {loading ? 'Saving...' : 'Save WhatsApp Number'}
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

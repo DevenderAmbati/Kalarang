@@ -42,6 +42,7 @@ const Gallery: React.FC<GalleryProps> = ({ cachedData, isOwnProfile = true }) =>
       src: artwork.images[0],
       alt: artwork.title,
       published: artwork.published,
+      isCommissioned: artwork.isCommissioned,
     }));
   }, [artworks]);
 

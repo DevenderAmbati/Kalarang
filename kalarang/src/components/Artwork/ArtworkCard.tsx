@@ -6,6 +6,7 @@ import LazyImage from '../Common/LazyImage';
 export interface ArtworkCardProps {
   id: number;
   artworkImage: string;
+  artworkImages?: string[]; // Multiple images for carousel
   artistAvatar: string;
   artistName: string;
   artistId?: string;
@@ -22,6 +23,7 @@ export interface ArtworkCardProps {
 const ArtworkCard: React.FC<ArtworkCardProps> = ({
   id,
   artworkImage,
+  artworkImages,
   artistAvatar,
   artistName,
   artistId,
@@ -35,6 +37,11 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
   sold = false,
 }) => {
   const [isAnimating, setIsAnimating] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
+  // Use artworkImages if provided, otherwise fallback to single artworkImage
+  const images = artworkImages && artworkImages.length > 0 ? artworkImages : [artworkImage];
+  const hasMultipleImages = images.length > 1;
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -73,6 +80,16 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
     setTimeout(() => setIsAnimating(false), 400);
   };
 
+  const handlePrevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
+  };
+
+  const handleNextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
+  };
+
   return (
     <div className="artwork-card" onClick={handleCardClick}>
       <div className="artwork-card-header">
@@ -89,7 +106,40 @@ const ArtworkCard: React.FC<ArtworkCardProps> = ({
       </div>
 
       <div className="artwork-image-container">
-        <LazyImage src={artworkImage} alt={description} className="artwork-image" />
+        <LazyImage src={images[currentImageIndex]} alt={description} className="artwork-image" />
+        
+        {hasMultipleImages && (
+          <>
+            <button 
+              className="image-nav-button image-nav-left"
+              onClick={handlePrevImage}
+              aria-label="Previous image"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            
+            <button 
+              className="image-nav-button image-nav-right"
+              onClick={handleNextImage}
+              aria-label="Next image"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+            
+            <div className="image-indicators">
+              {images.map((_, index) => (
+                <span 
+                  key={index} 
+                  className={`image-indicator ${index === currentImageIndex ? 'active' : ''}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="artwork-description">

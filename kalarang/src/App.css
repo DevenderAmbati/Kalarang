@@ -4,6 +4,8 @@
   flex-direction: column;
   height: 100dvh;
   overflow: hidden;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 .App-logo {

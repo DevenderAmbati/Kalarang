@@ -483,6 +483,42 @@
   }
 }
 
+/* Artist Cards Grid */
+.artist-cards-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 0 1rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.artist-cards-grid > div {
+  flex: 1 1 250px;
+  max-width: 300px;
+}
+
+/* Desktop: wider cards */
+@media (min-width: 768px) {
+  .artist-cards-grid > div {
+    flex: 1 1 250px;
+    max-width: 300px;
+  }
+}
+
+/* Mobile: 2 cards per row */
+@media (max-width: 767px) {
+  .artist-cards-grid {
+    gap: 12px;
+    padding: 0 0.75rem;
+  }
+  
+  .artist-cards-grid > div {
+    flex: 1 1 calc(50% - 6px);
+    max-width: calc(50% - 6px);
+  }
+}
+
 /* Spinner Animation */
 @keyframes spin {
   0% { transform: rotate(0deg); }

@@ -324,7 +324,7 @@ const Discover: React.FC = () => {
         await removeArtworkFromFavorites(appUser.uid, id);
         toast.success('Removed from favorites');
       } else {
-        await saveArtworkToFavorites(appUser.uid, id);
+        await saveArtworkToFavorites(appUser.uid, id, appUser.name, appUser.avatar);
         toast.success('Saved to your favourites');
       }
       // Invalidate favorite artworks cache
@@ -707,11 +707,7 @@ const Discover: React.FC = () => {
                   }}>
                     Artists
                   </h3>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                    gap: '16px',
-                  }}>
+                  <div className="artist-cards-grid">
                     {matchedUsers.map(user => (
                       <div
                         key={user.uid}

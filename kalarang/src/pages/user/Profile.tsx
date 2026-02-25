@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout/Layout';
 import { useNavigate } from 'react-router-dom';
-import { logout } from '../../services/authService';
+import { logout, deleteAccount } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import WhatsAppVerificationModal from '../../components/Modals/WhatsAppVerificationModal';
 import { getUserStats, getFollowersList, getFollowingList } from '../../services/userService';
 import { unfollowArtist } from '../../services/interactionService';
 import FollowersModal from '../../components/Modals/FollowersModal';
+import ConfirmModal from '../../components/Modals/ConfirmModal';
+import ReauthModal from '../../components/Modals/ReauthModal';
+import FullScreenLoader from '../../components/Common/FullScreenLoader';
 import { toast } from 'react-toastify';
+import { httpsCallable } from 'firebase/functions';
+import { auth, db, functions } from '../../firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { reauthenticateWithPopup, GoogleAuthProvider } from 'firebase/auth';
 
 const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -23,6 +30,11 @@ const Profile: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [showReauthModal, setShowReauthModal] = useState(false);
+  const [reauthProvider, setReauthProvider] = useState<'password' | 'google'>('password');
+  const [isReauthenticating, setIsReauthenticating] = useState(false);
   const [stats, setStats] = useState({ followers: 0, following: 0, artworks: 0 });
   const [followersModal, setFollowersModal] = useState<{
     isOpen: boolean;
@@ -45,6 +57,15 @@ const Profile: React.FC = () => {
     loadStats();
   }, [appUser?.uid]);
 
+  // Load WhatsApp number from appUser
+  useEffect(() => {
+    if (appUser?.whatsappNumber) {
+      setWhatsappNumber(appUser.whatsappNumber);
+    } else {
+      setWhatsappNumber('');
+    }
+  }, [appUser]);
+
   const handleLogout = async () => {
     await logout();
     navigate('/');
@@ -58,33 +79,44 @@ const Profile: React.FC = () => {
 
   const handleSendMessage = async () => {
     if (!supportMessage.trim()) {
-      alert('Please enter a message');
+      toast.error('Please enter a message');
       return;
     }
 
     setIsSendingMessage(true);
     try {
-      // TODO: Implement actual email sending via backend API
+      // Call Firebase Cloud Function to send email
+      const sendSupportEmail = httpsCallable(functions, 'sendSupportEmail');
+      
       const emailData = {
-        to: 'kalarang.team@gmail.com',
-        from: appUser?.email || 'anonymous',
-        subject: `Support/Suggestion from ${appUser?.name || 'User'}`,
         message: supportMessage,
-        userName: appUser?.name || 'Anonymous',
-        userEmail: appUser?.email || 'Not provided'
+        userName: appUser?.name || 'Anonymous User',
+        userEmail: appUser?.email || 'anonymous@example.com',
+        subject: `Support/Suggestion from ${appUser?.name || 'User'}`
       };
 
-      console.log('Sending email:', emailData);
+      console.log('Sending email via Cloud Function:', emailData);
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      setMessageSent(true);
-      setSupportMessage('');
-      setTimeout(() => setMessageSent(false), 3000);
-    } catch (error) {
+      const result = await sendSupportEmail(emailData);
+      const data = result.data as { success: boolean; message: string };
+      
+      if (data.success) {
+        setMessageSent(true);
+        setSupportMessage('');
+        toast.success('Message sent successfully! We\'ll get back to you soon.', {
+          position: 'top-center',
+          autoClose: 3000,
+        });
+        setTimeout(() => setMessageSent(false), 3000);
+      } else {
+        throw new Error('Failed to send email');
+      }
+    } catch (error: any) {
       console.error('Failed to send message:', error);
-      alert('Failed to send message. Please try again.');
+      toast.error(error.message || 'Failed to send message. Please try again.', {
+        position: 'top-center',
+        autoClose: 4000,
+      });
     } finally {
       setIsSendingMessage(false);
     }
@@ -92,39 +124,154 @@ const Profile: React.FC = () => {
 
   const handleDeleteAccount = async () => {
     if (!deleteReason.trim()) {
-      alert('Please provide a reason for deleting your account');
+      toast.error('Please provide a reason for deleting your account');
       return;
     }
 
-    const confirmDelete = window.confirm(
-      'Are you absolutely sure? This action cannot be undone. Your account and all data will be permanently deleted.'
-    );
+    // Show confirmation modal
+    setShowDeleteModal(true);
+  };
 
-    if (!confirmDelete) return;
-
+  const confirmDeleteAccount = async () => {
     setIsDeletingAccount(true);
+    setShowDeleteModal(false);
+    
     try {
-      // TODO: Implement actual account deletion via backend API
-      const deleteData = {
-        userId: appUser?.uid,
-        userName: appUser?.name,
-        userEmail: appUser?.email,
-        reason: deleteReason,
-        timestamp: new Date().toISOString()
+      // Send deletion feedback email to team
+      const sendSupportEmail = httpsCallable(functions, 'sendSupportEmail');
+      
+      const deletionEmailData = {
+        message: `User Deletion Request:\n\n${deleteReason}\n\nUser Details:\n- Name: ${appUser?.name || 'N/A'}\n- Email: ${appUser?.email || 'N/A'}\n- Role: ${appUser?.role || 'N/A'}\n- User ID: ${appUser?.uid || 'N/A'}`,
+        userName: appUser?.name || 'User',
+        userEmail: appUser?.email || 'anonymous@example.com',
+        subject: `🚨 Account Deletion Request from ${appUser?.name || 'User'}`
       };
 
-      console.log('Deleting account:', deleteData);
+      // Send email notification (don't block on failure)
+      try {
+        await sendSupportEmail(deletionEmailData);
+        console.log('Deletion feedback email sent successfully');
+      } catch (emailError) {
+        console.error('Failed to send deletion feedback email:', emailError);
+        // Continue with deletion even if email fails
+      }
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      alert('Your account has been deleted. You will be logged out.');
-      await logout();
-      navigate('/');
-    } catch (error) {
+      // Try to delete account first (will check if reauthentication is needed)
+      if (appUser?.uid) {
+        try {
+          // First, check if we need reauthentication by attempting the operation
+          await deleteAccount(appUser.uid);
+          
+          toast.success('Your account has been deleted.', {
+            position: 'top-center',
+            autoClose: 3000,
+          });
+          
+          // Redirect to home page
+          navigate('/');
+        } catch (error: any) {
+          console.log('Deletion error:', error);
+          
+          // Handle reauthentication requirement
+          if (error.message === 'REQUIRES_REAUTH' || error.code === 'auth/requires-recent-login') {
+            // Show reauth modal based on provider
+            const provider = error.provider || appUser.provider;
+            setReauthProvider(provider === 'google' ? 'google' : 'password');
+            setShowReauthModal(true);
+            setIsDeletingAccount(false); // Allow user to interact with modal
+          } else if (error.message === 'NEEDS_PASSWORD') {
+            // Password required but not provided
+            setReauthProvider('password');
+            setShowReauthModal(true);
+            setIsDeletingAccount(false);
+          } else {
+            // Other errors
+            throw error;
+          }
+        }
+      }
+    } catch (error: any) {
       console.error('Failed to delete account:', error);
-      alert('Failed to delete account. Please try again or contact support.');
+      toast.error(error.message || 'Failed to delete account. Please try again or contact support.', {
+        position: 'top-center',
+        autoClose: 4000,
+      });
       setIsDeletingAccount(false);
+    }
+  };
+
+  const handlePasswordReauth = async (password: string) => {
+    if (!appUser?.uid) return;
+    
+    setIsReauthenticating(true);
+    try {
+      await deleteAccount(appUser.uid, password, true);
+      
+      toast.success('Your account has been deleted.', {
+        position: 'top-center',
+        autoClose: 2000,
+      });
+      
+      setShowReauthModal(false);
+      navigate('/');
+    } catch (error: any) {
+      console.error('Reauthentication failed:', error);
+      toast.error(error.message || 'Incorrect password. Please try again.', {
+        position: 'top-center',
+        autoClose: 4000,
+      });
+    } finally {
+      setIsReauthenticating(false);
+    }
+  };
+
+  const handleGoogleReauth = async () => {
+    if (!appUser?.uid) return;
+    
+    setIsReauthenticating(true);
+    try {
+      // Trigger Google popup DIRECTLY on user click to avoid popup blockers
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('No user is currently signed in');
+      }
+      
+      const googleProvider = new GoogleAuthProvider();
+      console.log('Triggering Google sign-in popup...');
+      await reauthenticateWithPopup(user, googleProvider);
+      console.log('Google reauthentication successful');
+      
+      // Now delete account with skipReauth flag since we just reauthenticated
+      await deleteAccount(appUser.uid, undefined, true);
+      
+      toast.success('Your account has been deleted.', {
+        position: 'top-center',
+        autoClose: 2000,
+      });
+      
+      setShowReauthModal(false);
+      navigate('/');
+    } catch (error: any) {
+      console.error('Reauthentication failed:', error);
+      
+      if (error.code === 'auth/popup-closed-by-user') {
+        toast.info('Sign-in cancelled. Please try again.', {
+          position: 'top-center',
+          autoClose: 3000,
+        });
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        toast.info('Sign-in cancelled. Please try again.', {
+          position: 'top-center',
+          autoClose: 3000,
+        });
+      } else {
+        toast.error(error.message || 'Failed to verify identity. Please try again.', {
+          position: 'top-center',
+          autoClose: 4000,
+        });
+      }
+    } finally {
+      setIsReauthenticating(false);
     }
   };
 
@@ -135,7 +282,32 @@ const Profile: React.FC = () => {
       .join(' ');
   };
 
+  const handleDeleteWhatsApp = async () => {
+    if (!appUser?.uid) return;
+
+    try {
+      const userRef = doc(db, 'users', appUser.uid);
+      await updateDoc(userRef, {
+        whatsappNumber: null,
+        whatsappVerified: false,
+        whatsappAddedAt: null,
+      });
+
+      toast.success('WhatsApp number removed successfully!', {
+        position: 'top-center',
+        autoClose: 3000,
+      });
+
+      setWhatsappNumber('');
+      setShowDeleteWhatsAppConfirm(false);
+    } catch (err: any) {
+      console.error('❌ Error removing WhatsApp number:', err);
+      toast.error(err.message || 'Failed to remove WhatsApp number');
+    }
+  };
+
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [showDeleteWhatsAppConfirm, setShowDeleteWhatsAppConfirm] = useState(false);
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) {
@@ -217,27 +389,68 @@ const Profile: React.FC = () => {
 
   return (
     <div>
+      <style>{`
+        @media (min-width: 481px) and (max-width: 768px) {
+          .profile-header-mobile {
+            padding: 1rem !important;
+            gap: 0.75rem !important;
+          }
+          .profile-image-mobile {
+            width: 60px !important;
+            height: 60px !important;
+            border-width: 2px !important;
+          }
+          .profile-name-mobile {
+            font-size: 1.1rem !important;
+            margin-bottom: 0.2rem !important;
+          }
+          .profile-email-mobile {
+            font-size: 0.85rem !important;
+            margin-bottom: 0.4rem !important;
+          }
+          .following-box-mobile {
+            padding: 0.35rem 0.6rem !important;
+            min-width: 65px !important;
+          }
+          .following-number-mobile {
+            font-size: 1.1rem !important;
+          }
+          .following-label-mobile {
+            font-size: 0.6rem !important;
+            margin-top: 0.15rem !important;
+            letter-spacing: 0.3px !important;
+          }
+          .profile-badge-mobile {
+            padding: 0.3rem 0.6rem !important;
+            font-size: 0.75rem !important;
+          }
+          .member-since-mobile {
+            font-size: 0.7rem !important;
+          }
+        }
+      `}</style>
       <div style={styles.container}>
         <div style={styles.content}>
-          <div style={styles.profileHeader}>
+          <div style={styles.profileHeader} className="profile-header-mobile">
             <div style={styles.profileImageContainer}>
               {appUser?.role === 'artist' ? (
-                <img src={appUser.avatar || '/artist.png'} alt="Artist Profile" style={styles.profileImage} />
+                <img src={appUser.avatar || '/artist.png'} alt="Artist Profile" style={styles.profileImage} className="profile-image-mobile" />
               ) : (
-                <img src="/man-with-hat.png" alt="Buyer Profile" style={styles.profileImage} />
+                <img src="/man-with-hat.png" alt="Buyer Profile" style={styles.profileImage} className="profile-image-mobile" />
               )}
             </div>
             <div style={styles.profileInfo}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
                 <div>
-                  <h2 style={styles.name}>{appUser?.name ? capitalizeName(appUser.name) : 'User'}</h2>
-                  <p style={styles.email}>{appUser?.email}</p>
+                  <h2 style={styles.name} className="profile-name-mobile">{appUser?.name ? capitalizeName(appUser.name) : 'User'}</h2>
+                  <p style={styles.email} className="profile-email-mobile">{appUser?.email}</p>
                 </div>
                 
                 {/* Following Stats */}
                 {appUser?.role === 'artist' && (
                   <div 
                     onClick={handleFollowingClick}
+                    className="following-box-mobile"
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
@@ -260,7 +473,7 @@ const Profile: React.FC = () => {
                       e.currentTarget.style.transform = 'translateY(0)';
                     }}
                   >
-                    <span style={{ 
+                    <span className="following-number-mobile" style={{ 
                       fontSize: '1.5rem', 
                       fontWeight: 700, 
                       color: 'var(--color-teal, #0d9488)',
@@ -268,7 +481,7 @@ const Profile: React.FC = () => {
                     }}>
                       {formatNumber(stats.following)}
                     </span>
-                    <span style={{ 
+                    <span className="following-label-mobile" style={{ 
                       fontSize: '0.7rem', 
                       color: 'var(--color-text-secondary)',
                       marginTop: '0.25rem',
@@ -283,10 +496,10 @@ const Profile: React.FC = () => {
               </div>
               
               <div style={styles.badgeRow}>
-                <span style={styles.roleBadge}>
+                <span style={styles.roleBadge} className="profile-badge-mobile">
                   {appUser?.role === 'artist' ? '🎨 Artist' : '🎩 Art Lover'}
                 </span>
-                <span style={styles.memberSince}>
+                <span style={styles.memberSince} className="member-since-mobile">
                   since {(() => {
                     try {
                       if (!appUser?.createdAt) return 'N/A';
@@ -302,7 +515,7 @@ const Profile: React.FC = () => {
           </div>
 
           {/* Theme Toggle Section */}
-          <div style={styles.themeSection}>
+          {/* <div style={styles.themeSection}>
             <div style={styles.themeToggleContainer}>
               <span style={styles.themeDescription}>
                 {theme === 'light' ? '☀️ Light Mode' : '🌙 Dark Mode'}
@@ -323,35 +536,93 @@ const Profile: React.FC = () => {
                 Switch to {theme === 'light' ? 'Dark' : 'Light'} Mode
               </button>
             </div>
-          </div>
+          </div> */}
 
           {/* WhatsApp Section for Artists */}
           {appUser?.role === 'artist' && (
             <div style={styles.whatsappSection}>
               <div style={styles.whatsappHeader}>
                 <span style={styles.whatsappLabel}> WhatsApp Number</span>
-                {!isEditingWhatsApp && (
-                  <button
-                    onClick={() => setIsWhatsAppModalOpen(true)}
-                    style={{
-                      ...styles.editButton,
-                      ...(hoveredButton === 'edit' ? {
-                        background: 'var(--gradient-primary-hover)',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 8px rgba(47, 164, 169, 0.3)',
-                      } : {})
-                    }}
-                    onMouseEnter={() => setHoveredButton('edit')}
-                    onMouseLeave={() => setHoveredButton(null)}
-                  >
-                    {whatsappNumber ? 'Edit' : 'Add  +'}
-                  </button>
-                )}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {whatsappNumber && (
+                    <button
+                      onClick={() => setShowDeleteWhatsAppConfirm(true)}
+                      style={{
+                        ...styles.deleteIconButton,
+                        ...(hoveredButton === 'deleteWhatsApp' ? {
+                          background: 'rgba(220, 38, 38, 0.1)',
+                          transform: 'translateY(-1px)',
+                        } : {})
+                      }}
+                      onMouseEnter={() => setHoveredButton('deleteWhatsApp')}
+                      onMouseLeave={() => setHoveredButton(null)}
+                    >
+                      🗑️
+                    </button>
+                  )}
+                  {!isEditingWhatsApp && (
+                    <button
+                      onClick={() => setIsWhatsAppModalOpen(true)}
+                      style={{
+                        ...styles.editButton,
+                        ...(hoveredButton === 'edit' ? {
+                          background: 'var(--gradient-primary-hover)',
+                          transform: 'translateY(-1px)',
+                          boxShadow: '0 4px 8px rgba(47, 164, 169, 0.3)',
+                        } : {})
+                      }}
+                      onMouseEnter={() => setHoveredButton('edit')}
+                      onMouseLeave={() => setHoveredButton(null)}
+                    >
+                      {whatsappNumber ? 'Edit' : 'Add  +'}
+                    </button>
+                  )}
+                </div>
               </div>
               <div style={styles.whatsappDisplay}>
                 {whatsappNumber || 'Not added yet'}
               </div>
 
+              {/* Delete WhatsApp Confirmation */}
+              {showDeleteWhatsAppConfirm && (
+                <div style={styles.deleteConfirmContainer}>
+                  <p style={styles.supportDescription}>
+                    Are you sure you want to remove your WhatsApp number?
+                  </p>
+                  <div style={styles.actionButtonsContainer}>
+                    <button
+                      onClick={handleDeleteWhatsApp}
+                      style={{
+                        ...styles.confirmDeleteButton,
+                        ...(hoveredButton === 'confirmDeleteWhatsApp' ? {
+                          backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                          transform: 'translateY(-1px)',
+                          boxShadow: '0 2px 4px rgba(220, 38, 38, 0.2)',
+                        } : {})
+                      }}
+                      onMouseEnter={() => setHoveredButton('confirmDeleteWhatsApp')}
+                      onMouseLeave={() => setHoveredButton(null)}
+                    >
+                      Yes, Remove
+                    </button>
+                    <button
+                      onClick={() => setShowDeleteWhatsAppConfirm(false)}
+                      style={{
+                        ...styles.cancelButton,
+                        ...(hoveredButton === 'cancelDeleteWhatsApp' ? {
+                          background: 'var(--primary-alpha-10)',
+                          transform: 'translateY(-1px)',
+                          boxShadow: '0 2px 4px rgba(47, 164, 169, 0.2)',
+                        } : {})
+                      }}
+                      onMouseEnter={() => setHoveredButton('cancelDeleteWhatsApp')}
+                      onMouseLeave={() => setHoveredButton(null)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -433,11 +704,8 @@ const Profile: React.FC = () => {
               </div>
             ) : (
               <div style={styles.deleteConfirmContainer}>
-                <p style={styles.deleteWarning}>
-                  ⚠️ Warning: This action is permanent and cannot be undone.
-                </p>
                 <p style={styles.supportDescription}>
-                  Please tell us why you're leaving (required):
+                  We're sorry to see you go! Please help us improve by sharing why you're leaving (required):
                 </p>
                 <textarea
                   value={deleteReason}
@@ -514,6 +782,37 @@ const Profile: React.FC = () => {
       isLoading={followersModal.isLoading}
       onRemoveFollower={handleRemoveFollower}
       onUnfollow={handleUnfollow}
+    />
+
+    {/* Delete Account Confirmation Modal */}
+    <ConfirmModal
+      isOpen={showDeleteModal}
+      onClose={() => setShowDeleteModal(false)}
+      onConfirm={confirmDeleteAccount}
+      title="Delete Account"
+      message="Are you sure? This action cannot be undone. Your account and all data will be permanently deleted."
+      confirmText="Delete My Account"
+      cancelText="Cancel"
+      type="danger"
+    />
+
+    {/* Reauthentication Modal */}
+    <ReauthModal
+      isOpen={showReauthModal}
+      onClose={() => {
+        setShowReauthModal(false);
+        setIsDeletingAccount(false);
+      }}
+      onPasswordSubmit={handlePasswordReauth}
+      onGoogleSignIn={handleGoogleReauth}
+      provider={reauthProvider}
+      isLoading={isReauthenticating}
+    />
+
+    {/* Full Screen Loader for Account Deletion */}
+    <FullScreenLoader
+      isVisible={isDeletingAccount && !showReauthModal}
+      message="Deleting your account... Please wait."
     />
     </div>
   );
@@ -675,6 +974,20 @@ const styles = {
     transition: 'all 0.2s ease',
     boxShadow: '0 2px 4px rgba(47, 164, 169, 0.2)',
   },
+  deleteIconButton: {
+    padding: '0.4rem 0.4rem',
+    backgroundColor: 'transparent',
+    color: '#2fa5a3',
+    border: '2px solid #3aaaa0',
+    borderRadius: '8px',
+    fontSize: '1rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    marginLeft: '0.5rem',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as React.CSSProperties,
   saveButton: {
     padding: '0.5rem 1.2rem',
     background: 'var(--gradient-primary)',

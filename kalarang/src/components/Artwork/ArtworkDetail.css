@@ -372,7 +372,7 @@
 
 .reach-out-button {
   flex: 1;
-  padding: 11px 28px;
+  padding: 11px 12px;
   background: var(--gradient-button);
   color: var(--color-bg-white);
   border: none;

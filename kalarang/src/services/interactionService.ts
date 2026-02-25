@@ -12,6 +12,7 @@ import {
   updateDoc,
   increment,
 } from "firebase/firestore";
+import { createNotification } from "./notificationService";
 
 /**
  * Like an artwork
@@ -62,7 +63,9 @@ export async function hasLikedArtwork(
  */
 export async function saveArtworkToFavorites(
   userId: string,
-  artworkId: string
+  artworkId: string,
+  userName?: string,
+  userAvatar?: string
 ): Promise<void> {
   const favoriteRef = doc(db, "favorites", `${userId}_${artworkId}`);
   await setDoc(favoriteRef, {
@@ -70,6 +73,45 @@ export async function saveArtworkToFavorites(
     artworkId,
     createdAt: serverTimestamp(),
   });
+
+  // Get artwork details to create notification
+  if (userName) {
+    console.log('Creating favorite notification for artwork:', artworkId);
+    try {
+      const artworkRef = doc(db, "artworks", artworkId);
+      const artworkSnap = await getDoc(artworkRef);
+      
+      if (artworkSnap.exists()) {
+        const artworkData = artworkSnap.data();
+        const artistId = artworkData.artistId;
+        
+        console.log('Artwork data:', { artistId, userId, title: artworkData.title });
+        
+        // Don't notify if user favorites their own artwork
+        if (artistId && artistId !== userId) {
+          await createNotification(
+            artistId,
+            'favourite',
+            userId,
+            userName,
+            userAvatar,
+            artworkId,
+            artworkData.title,
+            artworkData.images?.[0]
+          );
+          console.log('Favorite notification created successfully');
+        } else {
+          console.log('Notification not created - user favorited their own artwork');
+        }
+      } else {
+        console.warn('Artwork not found:', artworkId);
+      }
+    } catch (error) {
+      console.error('Error creating favorite notification:', error);
+    }
+  } else {
+    console.warn('Favorite notification not created - userName is missing');
+  }
 }
 
 /**
@@ -108,13 +150,37 @@ export async function getUserFavoriteArtworkIds(userId: string): Promise<string[
 /**
  * Follow an artist
  */
-export async function followArtist(followerId: string, artistId: string): Promise<void> {
+export async function followArtist(
+  followerId: string,
+  artistId: string,
+  followerName?: string,
+  followerAvatar?: string
+): Promise<void> {
   const followRef = doc(db, "follows", `${followerId}_${artistId}`);
   await setDoc(followRef, {
     followerId,
     artistId,
     createdAt: serverTimestamp(),
   });
+
+  // Create follow notification
+  if (followerName) {
+    console.log('Creating follow notification:', { artistId, followerId, followerName, followerAvatar });
+    try {
+      await createNotification(
+        artistId,
+        'follow',
+        followerId,
+        followerName,
+        followerAvatar
+      );
+      console.log('Follow notification created successfully');
+    } catch (error) {
+      console.error('Error creating follow notification:', error);
+    }
+  } else {
+    console.warn('Follow notification not created - followerName is missing');
+  }
 }
 
 /**
@@ -136,3 +202,5 @@ export async function isFollowingArtist(
   const followSnap = await getDoc(followRef);
   return followSnap.exists();
 }
+
+

@@ -7,6 +7,9 @@ import { logout } from '../../services/authService';
 import { useSidebar } from '../../context/SidebarContext';
 import { useAuth } from '../../context/AuthContext';
 import { FaUserCircle } from 'react-icons/fa';
+import { IoMdNotifications } from 'react-icons/io';
+import NotificationModal from '../Modals/NotificationModal';
+import { subscribeToUnreadCount } from '../../services/notificationService';
 import './Layout.css';
 
 interface LayoutProps {
@@ -36,6 +39,19 @@ const Layout: React.FC<LayoutProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const [, forceUpdate] = useState({});
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Subscribe to unread notification count
+  useEffect(() => {
+    if (!appUser) return;
+    
+    const unsubscribe = subscribeToUnreadCount(appUser.uid, (count) => {
+      setUnreadCount(count);
+    });
+
+    return () => unsubscribe();
+  }, [appUser]);
 
   // Force re-render when document title changes (for dynamic portfolio titles)
   useEffect(() => {
@@ -101,9 +117,23 @@ const Layout: React.FC<LayoutProps> = ({
           </div>
           <div className="header-right" style={styles.headerRight}>
             {appUser?.role === 'artist' && (
-              <div onClick={handleProfileClick} style={styles.profileIcon} className="layout-profile-icon">
-                <img src={appUser.avatar || '/artist.png'} alt="Artist Profile" style={styles.profileImage} />
-              </div>
+              <>
+                <div 
+                  onClick={() => setIsNotificationModalOpen(true)}
+                  style={{...styles.notificationIcon, position: 'relative'}} 
+                  className="layout-notification-icon"
+                >
+                  {IoMdNotifications({ size: 24 })}
+                  {unreadCount > 0 && (
+                    <div style={styles.unreadBadge}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </div>
+                  )}
+                </div>
+                <div onClick={handleProfileClick} style={styles.profileIcon} className="layout-profile-icon">
+                  <img src={appUser.avatar || '/artist.png'} alt="Artist Profile" style={styles.profileImage} />
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -145,6 +175,12 @@ const Layout: React.FC<LayoutProps> = ({
             </div>
           )}
         </div>
+        
+        {/* Notification Modal */}
+        <NotificationModal 
+          isOpen={isNotificationModalOpen}
+          onClose={() => setIsNotificationModalOpen(false)}
+        />
       </main>
       {/* Mobile Bottom Navigation - Only visible on mobile devices */}
       <BottomNav />
@@ -206,6 +242,36 @@ const styles = {
     cursor: 'pointer',
     transition: 'transform 0.2s ease, box-shadow 0.2s ease',
     border: '2px solid var(--color-primary)',
+  } as React.CSSProperties,
+  notificationIcon: {
+    cursor: 'pointer',
+    color: 'var(--color-primary)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    transition: 'all 0.3s ease',
+    marginRight: '0.5rem',
+  } as React.CSSProperties,
+  unreadBadge: {
+    position: 'absolute',
+    top: '-2px',
+    right: '-2px',
+    background: '#E91E63',
+    color: 'white',
+    fontSize: '0.65rem',
+    fontWeight: 700,
+    padding: '0.15rem 0.35rem',
+    borderRadius: '10px',
+    minWidth: '18px',
+    height: '18px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '2px solid var(--color-bg-white)',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
   } as React.CSSProperties,
   main: {
     marginLeft: '260px',
