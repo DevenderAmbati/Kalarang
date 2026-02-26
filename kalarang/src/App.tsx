@@ -1,33 +1,107 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from 'react';
 import Lottie from 'lottie-react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Layout from "./components/Layout";
-import Home from "./pages/Home";
-import About from "./pages/About";
-import Login from "./pages/Login";
-import SignUp from "./pages/SignUp";
-import ResetPassword from "./pages/ResetPassword";
-import Upload from "./pages/Upload";
-import HomeFeed from "./pages/HomeFeed";
-import Discover from "./pages/Discover";
-import Favourites from "./pages/Favourites";
-import Portfolio from "./pages/Portfolio";
-import Profile from "./pages/Profile";
-import CardDetail from "./pages/CardDetail";
-import CreateUsername from "./pages/CreateUsername";
+import './toastStyles.css';
+import Layout from "./components/Layout/Layout";
+import Home from "./pages/landing/Home";
+import About from "./pages/landing/About";
+import Login from "./pages/auth/Login";
+import SignUp from "./pages/auth/SignUp";
+import ResetPassword from "./pages/auth/ResetPassword";
+import SetNewPassword from "./pages/auth/SetNewPassword";
+import Upload from "./pages/artwork/Upload";
+import HomeFeed from "./pages/feed/HomeFeed";
+import Discover from "./pages/feed/Discover";
+import Favourites from "./pages/user/Favourites";
+import Portfolio from "./pages/user/Portfolio";
+import OtherUserPortfolio from "./pages/user/OtherUserPortfolio";
+import Profile from "./pages/user/Profile";
+import CardDetail from "./pages/artwork/CardDetail";
+import CreateUsername from "./pages/auth/CreateUsername";
+import WhatsAppPromptModal from "./components/Modals/WhatsAppPromptModal";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
+import { PermissionGuard } from "./components/Permissions/PermissionGuard";
 import { useAuth } from "./context/AuthContext";
 import { SidebarProvider } from "./context/SidebarContext";
+import { Permission } from "./utils/permissions";
+import { ThemeProvider } from "./context/ThemeContext";
 import { logout } from "./services/authService";
 import laptopDrawing from './animations/Laptop-Drawing 1.json';
-import ArtistLanding from "./pages/ArtistLanding";
-import BuyerLanding from "./pages/BuyerLanding";
+import ArtistLanding from "./pages/landing/ArtistLanding";
+import BuyerLanding from "./pages/landing/BuyerLanding";
+
+// Persistent Feed Container Component
+const PersistentFeedContainer: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  return (
+    <Layout 
+      onLogout={handleLogout}
+      homeFeedComponent={<HomeFeed />}
+      discoverComponent={<Discover />}
+      favouritesComponent={<Favourites />}
+    >
+      {children}
+    </Layout>
+  );
+};
+
+// Main App Layout for static menu navigation
+const MainAppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  return (
+    <Layout 
+      onLogout={handleLogout}
+      homeFeedComponent={<HomeFeed />}
+      discoverComponent={<Discover />}
+      favouritesComponent={<Favourites />}
+    >
+      {children}
+    </Layout>
+  );
+};
 
 function App() {
-  const { firebaseUser, appUser, loading } = useAuth();
+  const { firebaseUser, appUser, loading, refreshUserProfile } = useAuth();
+  const [showWhatsAppPrompt, setShowWhatsAppPrompt] = useState(false);
+
+  // Check if we should show WhatsApp prompt modal
+  useEffect(() => {
+    if (!loading && appUser) {
+      // Check if dismissed in this session
+      const dismissedThisSession = sessionStorage.getItem(`whatsapp_dismissed_${appUser.uid}`) === 'true';
+      
+      // Show prompt only for artists who:
+      // 1. Have a username (not in username creation flow)
+      // 2. Don't have a WhatsApp number
+      // 3. Haven't opted out (dontAskWhatsApp is not true)
+      // 4. Haven't dismissed it in this session
+      const shouldShowPrompt = 
+        appUser.role === 'artist' &&
+        appUser.username &&
+        !appUser.whatsappNumber &&
+        !appUser.dontAskWhatsApp &&
+        !dismissedThisSession;
+      
+      if (shouldShowPrompt) {
+        // Small delay to let the page load first
+        const timer = setTimeout(() => {
+          setShowWhatsAppPrompt(true);
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [appUser, loading]);
+
 
   // Helper function to check if user is authenticated
   const isAuthenticated = () => {
@@ -51,25 +125,38 @@ function App() {
     await logout();
   };
 
+  const handleWhatsAppPromptClose = () => {
+    setShowWhatsAppPrompt(false);
+    if (appUser?.uid) {
+      sessionStorage.setItem(`whatsapp_dismissed_${appUser.uid}`, 'true');
+    }
+  };
+
+  const handleWhatsAppSaved = async (phoneNumber: string) => {
+    console.log('WhatsApp number added:', phoneNumber);
+    await refreshUserProfile();
+    setShowWhatsAppPrompt(false);
+  };
+
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
+      <div style={{
+        display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center', 
+        justifyContent: 'center',
+        alignItems: 'center',
         height: '100vh',
         backgroundColor: '#f5f5f5'
       }}>
-        <Lottie 
-          animationData={laptopDrawing} 
+        <Lottie
+          animationData={laptopDrawing}
           loop={true}
           style={{ width: '400px', height: '400px' }}
         />
-        <p style={{ 
-          marginTop: '1rem', 
-          fontSize: '1.2rem', 
-          color: '#333',
+        <p style={{
+          marginTop: '1rem',
+          fontSize: '1.2rem',
+          color: '#008B8B',
           fontWeight: 500
         }}>
           Preparing your canvas...
@@ -79,221 +166,294 @@ function App() {
   }
 
   return (
-    <Router>
-      <SidebarProvider>
-        <ToastContainer />
-        <Routes>
+    <>
+      <div id="recaptcha-container"></div>
+      <ThemeProvider>
+        <Router>
+          <SidebarProvider>
+            <ToastContainer 
+              position="top-center"
+              autoClose={2000}
+              hideProgressBar={false}
+              newestOnTop={true}
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+            />
+            <Routes>
 
-          {/* Public routes */}
-          <Route
-          path="/"
-          element={isAuthenticated() ? <Navigate to="/home" /> : <Home />}
-        />
+              {/* Public routes */}
+              <Route
+                path="/"
+                element={isAuthenticated() ? <Navigate to="/home" /> : <Home />}
+              />
 
-        <Route path="/about" element={<About />} />
+              <Route path="/about" element={<About />} />
 
-        <Route
-          path="/login"
-          element={isAuthenticated() ? <Navigate to="/home" replace /> : <Login onLogin={handleLogin} />}
-        />
+              <Route
+                path="/login"
+                element={isAuthenticated() ? <Navigate to="/home" replace /> : <Login onLogin={handleLogin} />}
+              />
 
-        <Route
-          path="/signup"
-          element={isAuthenticated() ? <Navigate to="/home" /> : <SignUp onSignUp={handleSignUp} />}
-        />
+              <Route
+                path="/signup"
+                element={isAuthenticated() ? <Navigate to="/home" /> : <SignUp onSignUp={handleSignUp} />}
+              />
 
-        {/* Username creation route for artists */}
-        <Route
-          path="/create-username"
-          element={
-            <ProtectedRoute>
-              {appUser?.role === "artist" && !appUser?.username ? (
-                <CreateUsername />
-              ) : (
-                <Navigate to={appUser?.role === "artist" ? "/artist" : "/dashboard"} replace />
-              )}
-            </ProtectedRoute>
-          }
-        />
+              {/* Username creation route for artists */}
+              <Route
+                path="/create-username"
+                element={
+                  <ProtectedRoute>
+                    <PermissionGuard 
+                      permission={Permission.CREATE_USERNAME}
+                      redirectTo="/home"
+                    >
+                      {!appUser?.username ? (
+                        <CreateUsername />
+                      ) : (
+                        <Navigate to="/home" replace />
+                      )}
+                    </PermissionGuard>
+                  </ProtectedRoute>
+                }
+              />
 
-        <Route
-          path="/reset-password"
-          element={isAuthenticated() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} /> : <ResetPassword />}
-        />
+              <Route
+                path="/forgot-password"
+                element={isAuthenticated() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} /> : <ResetPassword />}
+              />
 
-        {/* Protected routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Layout onLogout={handleLogout} pageTitle="Dashboard">
-                <div style={{ padding: "2rem" }}>
-                  <h1>Dashboard</h1>
-                  <p>Welcome {appUser?.name}</p>
-                </div>
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+              <Route
+                path="/reset-password"
+                element={isAuthenticated() ? <Navigate to={appUser!.role === "artist" ? "/artist" : appUser!.role === "buyer" ? "/buyer" : "/dashboard"} /> : <SetNewPassword />}
+              />
 
-        <Route
-          path="/upload"
-          element={
-            <ProtectedRoute>
-              {needsUsernameCreation() ? (
-                <Navigate to="/create-username" replace />
-              ) : (
-                <Upload />
-              )}
-            </ProtectedRoute>
-          }
-        />
+              {/* Protected routes */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Layout onLogout={handleLogout} pageTitle="Dashboard">
+                      <div style={{ padding: "2rem" }}>
+                        <h1>Dashboard</h1>
+                        <p>Welcome {appUser?.name}</p>
+                      </div>
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
 
-        <Route
-          path="/artist"
-          element={
-            <ProtectedRoute>
-              {appUser?.role === "artist" ? (
-                needsUsernameCreation() ? (
-                  <Navigate to="/create-username" replace />
-                ) : (
-                  <ArtistLanding />
-                )
-              ) : (
-                <Navigate to="/dashboard" replace />
-              )}
-            </ProtectedRoute>
-          }
-        />
+              <Route
+                path="/upload"
+                element={
+                  <ProtectedRoute>
+                    <PermissionGuard 
+                      permission={Permission.CREATE_ARTWORK}
+                      redirectTo="/home"
+                    >
+                      {needsUsernameCreation() ? (
+                        <Navigate to="/create-username" replace />
+                      ) : (
+                        <Upload />
+                      )}
+                    </PermissionGuard>
+                  </ProtectedRoute>
+                }
+              />
 
-        <Route
-          path="/buyer"
-          element={
-            <ProtectedRoute>
-              {appUser?.role === "buyer" ? (
-                <BuyerLanding />
-              ) : (
-                <Navigate to="/dashboard" replace />
-              )}
-            </ProtectedRoute>
-          }
-        />
+              <Route
+                path="/artist"
+                element={
+                  <ProtectedRoute>
+                    <PermissionGuard 
+                      permission={Permission.VIEW_ARTIST_PROFILE}
+                      redirectTo="/home"
+                    >
+                      {needsUsernameCreation() ? (
+                        <Navigate to="/create-username" replace />
+                      ) : (
+                        <ArtistLanding />
+                      )}
+                    </PermissionGuard>
+                  </ProtectedRoute>
+                }
+              />
 
-        <Route
-          path="/my-artworks"
-          element={
-            <ProtectedRoute>
-              <Layout onLogout={handleLogout} pageTitle="My Artworks">
-                <h1>🖼️ My Artworks</h1>
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+              <Route
+                path="/buyer"
+                element={
+                  <ProtectedRoute>
+                    <PermissionGuard 
+                      permission={Permission.VIEW_BUYER_PROFILE}
+                      redirectTo="/home"
+                    >
+                      <BuyerLanding />
+                    </PermissionGuard>
+                  </ProtectedRoute>
+                }
+              />
 
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              {needsUsernameCreation() ? (
-                <Navigate to="/create-username" replace />
-              ) : (
-                <Profile />
-              )}
-            </ProtectedRoute>
-          }
-        />
+              <Route
+                path="/my-artworks"
+                element={
+                  <ProtectedRoute>
+                    <Layout onLogout={handleLogout} pageTitle="My Artworks">
+                      <h1>🖼️ My Artworks</h1>
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
 
-        <Route
-          path="/home"
-          element={
-            <ProtectedRoute>
-              {needsUsernameCreation() ? (
-                <Navigate to="/create-username" replace />
-              ) : (
-                <HomeFeed />
-              )}
-            </ProtectedRoute>
-          }
-        />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    {needsUsernameCreation() ? (
+                      <Navigate to="/create-username" replace />
+                    ) : (
+                      <MainAppLayout>
+                        <Profile />
+                      </MainAppLayout>
+                    )}
+                  </ProtectedRoute>
+                }
+              />
 
-        <Route
-          path="/discover"
-          element={
-            <ProtectedRoute>
-              {needsUsernameCreation() ? (
-                <Navigate to="/create-username" replace />
-              ) : (
-                <Discover />
-              )}
-            </ProtectedRoute>
-          }
-        />
+              <Route
+                path="/home"
+                element={
+                  <ProtectedRoute>
+                    {needsUsernameCreation() ? (
+                      <Navigate to="/create-username" replace />
+                    ) : (
+                      <PersistentFeedContainer />
+                    )}
+                  </ProtectedRoute>
+                }
+              />
 
-        <Route
-          path="/post"
-          element={
-            <ProtectedRoute>
-              {needsUsernameCreation() ? (
-                <Navigate to="/create-username" replace />
-              ) : (
-                <Upload />
-              )}
-            </ProtectedRoute>
-          }
-        />
+              <Route
+                path="/discover"
+                element={
+                  <ProtectedRoute>
+                    {needsUsernameCreation() ? (
+                      <Navigate to="/create-username" replace />
+                    ) : (
+                      <PersistentFeedContainer />
+                    )}
+                  </ProtectedRoute>
+                }
+              />
 
-        <Route
-          path="/favourites"
-          element={
-            <ProtectedRoute>
-              {needsUsernameCreation() ? (
-                <Navigate to="/create-username" replace />
-              ) : (
-                <Favourites />
-              )}
-            </ProtectedRoute>
-          }
-        />
+              <Route
+                path="/post"
+                element={
+                  <ProtectedRoute>
+                    <PermissionGuard 
+                      permission={Permission.CREATE_ARTWORK}
+                      redirectTo="/home"
+                    >
+                      {needsUsernameCreation() ? (
+                        <Navigate to="/create-username" replace />
+                      ) : (
+                        <Upload />
+                      )}
+                    </PermissionGuard>
+                  </ProtectedRoute>
+                }
+              />
 
-        <Route
-          path="/portfolio"
-          element={
-            <ProtectedRoute>
-              {needsUsernameCreation() ? (
-                <Navigate to="/create-username" replace />
-              ) : (
-                <Portfolio />
-              )}
-            </ProtectedRoute>
-          }
-        />
+              <Route
+                path="/favourites"
+                element={
+                  <ProtectedRoute>
+                    {needsUsernameCreation() ? (
+                      <Navigate to="/create-username" replace />
+                    ) : (
+                      <PersistentFeedContainer />
+                    )}
+                  </ProtectedRoute>
+                }
+              />
 
-        <Route
-          path="/cart"
-          element={
-            <ProtectedRoute>
-              <Layout onLogout={handleLogout} pageTitle="Shopping Cart">
-                <div style={{ padding: "2rem" }}>
-                  <h1>🛒 Shopping Cart</h1>
-                  <p>Your selected artworks</p>
-                </div>
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+              <Route
+                path="/portfolio"
+                element={
+                  <ProtectedRoute>
+                    <PermissionGuard 
+                      permission={Permission.VIEW_PORTFOLIO}
+                      redirectTo="/home"
+                    >
+                      {needsUsernameCreation() ? (
+                        <Navigate to="/create-username" replace />
+                      ) : (
+                        <MainAppLayout>
+                          <Portfolio />
+                        </MainAppLayout>
+                      )}
+                    </PermissionGuard>
+                  </ProtectedRoute>
+                }
+              />
 
-        <Route
-          path="/card/:id"
-          element={
-            <ProtectedRoute>
-              <CardDetail />
-            </ProtectedRoute>
-          }
-        />
+              <Route
+                path="/portfolio/:userId"
+                element={
+                  <ProtectedRoute>
+                    {needsUsernameCreation() ? (
+                      <Navigate to="/create-username" replace />
+                    ) : (
+                      <PersistentFeedContainer>
+                        <OtherUserPortfolio />
+                      </PersistentFeedContainer>
+                    )}
+                  </ProtectedRoute>
+                }
+              />
 
-      </Routes>
-      </SidebarProvider>
-    </Router>
+              <Route
+                path="/cart"
+                element={
+                  <ProtectedRoute>
+                    <Layout onLogout={handleLogout} pageTitle="Shopping Cart">
+                      <div style={{ padding: "2rem" }}>
+                        <h1>🛒 Shopping Cart</h1>
+                        <p>Your selected artworks</p>
+                      </div>
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/card/:id"
+                element={
+                  <ProtectedRoute>
+                    <PersistentFeedContainer>
+                      <CardDetail />
+                    </PersistentFeedContainer>
+                  </ProtectedRoute>
+                }
+              />
+
+            </Routes>
+
+            {/* WhatsApp Prompt Modal - shown globally when conditions are met */}
+            {appUser && (
+              <WhatsAppPromptModal
+                isOpen={showWhatsAppPrompt}
+                onClose={handleWhatsAppPromptClose}
+                onSaved={handleWhatsAppSaved}
+                userId={appUser.uid}
+              />
+            )}
+          </SidebarProvider>
+        </Router>
+      </ThemeProvider>
+    </>
   );
 }
 
